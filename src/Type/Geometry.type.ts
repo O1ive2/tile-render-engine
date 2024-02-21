@@ -4,6 +4,12 @@ export enum RectType {
   fillAndStroke,
 }
 
+export enum RectState {
+  normal,
+  hover,
+  checked,
+}
+
 export type RectProperty = {
   id?: number;
   x: number;
@@ -17,6 +23,7 @@ export type RectProperty = {
   lineDash?: Array<number>;
   alpha?: number;
   hover?: Function;
+  state?: RectState;
 };
 
 export type IDrawingDataModel = {

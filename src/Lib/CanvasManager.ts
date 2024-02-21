@@ -1,3 +1,4 @@
+import { RectState } from '../Type/Geometry.type';
 import { maxThreads } from '../config';
 import GeometryManager from './GeometryManager';
 import Paint from './Paint';
@@ -47,7 +48,7 @@ export default class CanvasManager {
     });
 
     this.on('hover', ({ x, y }: { x: number; y: number }) => {
-      this.updateHover(x, y);
+      // this.updateHover(x, y);
     });
 
     this.render();
@@ -55,23 +56,39 @@ export default class CanvasManager {
 
   public updateHover(pointerX: number, pointerY: number) {
     const boundary = this.geometryManager.getBoundary();
+
     const totalOffsetX =
       this.renderingOffsetX +
       ((this.mainCanvas.width - this.initialRenderingWidth) / 2) * this.renderingScale;
+
     const totalOffsetY =
       this.renderingOffsetY +
       ((this.mainCanvas.height - this.initialRenderingHeight) / 2) * this.renderingScale;
+
     const scale = this.renderingToRealScale * this.renderingScale;
+
     // rect
     const rectList = this.geometryManager.getOriginalRectList();
-    for (let { x, y, width, height, hover } of rectList) {
+    for (let rectItem of rectList) {
+      const initialX = (rectItem.x - boundary[0]) * scale + totalOffsetX;
+      const initialY = (rectItem.y - boundary[2]) * scale + totalOffsetY;
       if (
-        pointerX >= (x - boundary[0]) * scale + totalOffsetX &&
-        pointerX <= (x - boundary[0] + width) * scale + totalOffsetX &&
-        pointerY >= (y - boundary[2]) * scale + totalOffsetY &&
-        pointerY <= (y - boundary[2] + height) * scale + totalOffsetY
+        pointerX >= initialX &&
+        pointerX <= initialX + rectItem.width * scale &&
+        pointerY >= initialY &&
+        pointerY <= initialY + rectItem.height * scale
       ) {
-        hover?.();
+        if (rectItem.state === RectState.hover || rectItem.state === RectState.checked) {
+          continue;
+        }
+        rectItem.state = RectState.hover;
+        const hoverProperty = rectItem.hover?.(rectItem);
+        if (hoverProperty) {
+        }
+      } else {
+        if (rectItem.state === RectState.hover) {
+          rectItem.state = RectState.normal;
+        }
       }
     }
   }

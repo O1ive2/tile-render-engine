@@ -1,4 +1,3 @@
-import { RectType } from '../Type/Geometry.type';
 import GeometryManager from './GeometryManager';
 
 export default class SubCanvas {
@@ -22,9 +21,12 @@ export default class SubCanvas {
         return;
       }
 
+      const now = Date.now();
       const retrievedData = new Uint8Array(rectListCompressed);
       const textDecoder = new TextDecoder();
       const rectList = JSON.parse(textDecoder.decode(retrievedData));
+      console.log(rectList.length);
+      console.log(Date.now() - now);
 
       for (const {
         x,
@@ -34,9 +36,10 @@ export default class SubCanvas {
         fillStyle = '',
         strokeStyle = '',
         lineWidth = 1,
-        type = RectType.fill,
+        type = 0,
         lineDash = [],
         alpha = 1,
+        state = 0,
       } of rectList) {
         ctx.save();
 

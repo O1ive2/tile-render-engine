@@ -176,6 +176,7 @@ export default class GeometryManager {
   }
 
   public collectRect(rect: RectProperty): void {
+    rect.id = this.drawingDataModel.rect.length;
     this.drawingDataModel.rect.push(rect);
   }
 
