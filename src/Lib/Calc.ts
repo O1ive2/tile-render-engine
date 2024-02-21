@@ -1,15 +1,17 @@
-import { IDrawingDataModel } from './Paint';
+import { IDrawingDataModel } from './CanvasManager';
 
 export default class Calc {
   private static instance: Calc;
 
   constructor() {}
 
-  public getBoundary(drawingDataModel: IDrawingDataModel): [number, number, number, number, number, number] {
+  public getBoundary(
+    drawingDataModel: IDrawingDataModel,
+    maxX = Number.NEGATIVE_INFINITY,
+    maxY = Number.NEGATIVE_INFINITY,
+  ): [number, number, number, number, number, number] {
     let minX = Number.POSITIVE_INFINITY;
     let minY = Number.POSITIVE_INFINITY;
-    let maxX = Number.NEGATIVE_INFINITY;
-    let maxY = Number.NEGATIVE_INFINITY;
 
     // rect
     const rectList = drawingDataModel.rect;
@@ -20,7 +22,12 @@ export default class Calc {
       maxY = Math.max(maxY, rect.y + rect.height);
     }
 
-    return [minX, maxX, minY, maxY, maxX - minX, maxY - maxY];
+    if (rectList.length === 0) {
+      minX = 0;
+      minY = 0;
+    }
+
+    return [minX, maxX, minY, maxY, maxX - minX, maxY - minY];
   }
 
   public static from(): Calc {

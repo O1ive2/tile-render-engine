@@ -14,7 +14,9 @@
     "build": "raina build",
     "dev": "raina dev"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@msgpack/msgpack": "^3.0.0-beta2"
+  },
   "devDependencies": {
     "@types/node": "^18.14.0",
     "@types/offscreencanvas": "^2019.7.0",

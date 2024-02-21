@@ -11,10 +11,6 @@ class Gaia {
       return null;
     }
   }
-
-  public static test() {
-    console.log('hello,world');
-  }
 }
 
 export default Gaia;
