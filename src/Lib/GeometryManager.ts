@@ -4,9 +4,8 @@ export default class GeometryManager {
   private static mgr: GeometryManager | null = null;
   private canvasArea: Array<
     Array<{
-      bitmap: ImageBitmap | null;
-      rectList: Array<RectProperty>;
-      rectListCompressed: any;
+      bitmap: ImageBitmap | OffscreenCanvas | null;
+      rectIdList: Uint32Array;
     }>
   > = [];
 
@@ -17,7 +16,25 @@ export default class GeometryManager {
     text: [],
   };
 
-  private drawingDataModelBuffer: any = {};
+  private serializedSharedData: any = {
+    rect: {
+      shared: {
+        id: null,
+        x: null,
+        y: null,
+        width: null,
+        height: null,
+        type: null,
+        alpha: null,
+        state: null,
+        lineWidth: null,
+        other: null,
+        style: null,
+      },
+      hoverFunction: [],
+      hoverIdList: new Map(),
+    },
+  };
 
   private boundary: [number, number, number, number, number, number] = [0, 0, 0, 0, 0, 0];
 
@@ -54,6 +71,7 @@ export default class GeometryManager {
     this.canvasArea[level] = Array.from({ length: pieceNumber }, () => ({
       bitmap: null,
       rectList: [],
+      rectIdList: new Uint32Array(),
       rectListCompressed: null,
     }));
     for (let i = 0; i < pieceNumber; i++) {
@@ -76,11 +94,13 @@ export default class GeometryManager {
     const pieceWidth = realWidth / sideNumber;
     const pieceHeight = realHeight / sideNumber;
 
+    const serializedRect = this.serializedSharedData.rect.shared;
+
     // rect
-    let rectList: any = [];
+    let rectIdList: any = [];
 
     if (level <= 1) {
-      rectList = this.drawingDataModel.rect;
+      rectIdList = serializedRect.id;
     } else {
       // get parent level index location
       const parentIndex = Math.abs(
@@ -88,36 +108,38 @@ export default class GeometryManager {
           Math.ceil((pieceIndexY + 1) / 2 - 1) * (sideNumber / 2),
       );
 
-      if (this.canvasArea[level - 1][parentIndex].rectList?.length === 0) {
+      if (this.canvasArea[level - 1][parentIndex].rectIdList?.length === 0) {
         this.setAreaPiece(level - 1, parentIndex);
       }
 
-      rectList = this.canvasArea[level - 1][parentIndex].rectList;
+      rectIdList = this.canvasArea[level - 1][parentIndex].rectIdList;
     }
 
-    for (let i = 0; i < rectList.length; i++) {
-      if (
-        this.intersects(
-          {
-            x: pieceIndexX * pieceWidth + offsetX,
-            y: pieceIndexY * pieceHeight + offsetY,
-            width: pieceWidth,
-            height: pieceHeight,
-          },
-          rectList[i],
-        )
-      ) {
-        this.setCanvasArea(level, pieceIndex, rectList[i]);
-      }
-    }
-
-    const textEncoder = new TextEncoder();
-    const encodedData = textEncoder.encode(
-      JSON.stringify(this.canvasArea[level][pieceIndex]?.rectList),
+    this.setCanvasArea(
+      level,
+      pieceIndex,
+      rectIdList.reduce((idList: Array<number>, id: number) => {
+        if (
+          this.intersects(
+            {
+              x: pieceIndexX * pieceWidth + offsetX,
+              y: pieceIndexY * pieceHeight + offsetY,
+              width: pieceWidth,
+              height: pieceHeight,
+            },
+            {
+              x: serializedRect.x[id],
+              y: serializedRect.y[id],
+              width: serializedRect.width[id],
+              height: serializedRect.height[id],
+            },
+          )
+        ) {
+          idList.push(id);
+        }
+        return idList;
+      }, []),
     );
-    const sharedBuffer = new SharedArrayBuffer(encodedData.length);
-    this.canvasArea[level][pieceIndex].rectListCompressed = new Uint8Array(sharedBuffer);
-    this.canvasArea[level][pieceIndex].rectListCompressed.set(encodedData);
   };
 
   private intersects(
@@ -169,8 +191,7 @@ export default class GeometryManager {
     if (!this.canvasArea[level][index]) {
       this.canvasArea[level][index] = {
         bitmap: null,
-        rectList: [],
-        rectListCompressed: null,
+        rectIdList: new Uint32Array(),
       };
     }
   }
@@ -184,14 +205,23 @@ export default class GeometryManager {
     return this.boundary;
   }
 
+  public setCanvasArea(level: number, index: number, canvas: OffscreenCanvas): void;
   public setCanvasArea(level: number, index: number, bitmap: ImageBitmap): void;
   public setCanvasArea(level: number, index: number, rect: RectProperty): void;
+  public setCanvasArea(level: number, index: number, idList: Array<number>): void;
   public setCanvasArea(level: number, index: number, value: any): void {
     this.fillCanvasArea(level, index);
     if (value instanceof ImageBitmap) {
       this.canvasArea[level][index].bitmap = value;
+    } else if (value instanceof OffscreenCanvas) {
+      this.canvasArea[level][index].bitmap = value;
+    } else if (Array.isArray(value)) {
+      this.canvasArea[level][index].rectIdList = new Uint32Array(
+        new SharedArrayBuffer(value.length * 4),
+      );
+      this.canvasArea[level][index].rectIdList.set(value);
     } else if (this.isRectPropertyType(value)) {
-      this.canvasArea[level][index].rectList.push(value);
+      // this.canvasArea[level][index].rectList.push(value);
     }
   }
 
@@ -203,20 +233,138 @@ export default class GeometryManager {
     return this.canvasArea[level]?.[index]?.bitmap;
   }
 
-  public getCanvasAreaCompressedList(level: number, index: number): any {
+  public getCanvasAreaIdList(level: number, index: number): any {
     this.fillCanvasArea(level, index);
-    if (!this.canvasArea[level]?.[index]?.rectListCompressed) {
+    if (this.canvasArea[level]?.[index]?.rectIdList.length === 0) {
       this.setAreaPiece(level, index);
     }
-    return this.canvasArea[level]?.[index]?.rectListCompressed;
+    return this.canvasArea[level]?.[index]?.rectIdList;
   }
 
   public getOriginalRectList(): Array<RectProperty> {
     return this.drawingDataModel.rect;
   }
 
+  public serializeRect(): void {
+    const rectNumber = this.drawingDataModel.rect.length;
+    const sharedRect = this.serializedSharedData.rect.shared;
+
+    sharedRect.id = new Uint32Array(new SharedArrayBuffer(rectNumber * 4));
+    sharedRect.x = new Float32Array(new SharedArrayBuffer(rectNumber * 4));
+    sharedRect.y = new Float32Array(new SharedArrayBuffer(rectNumber * 4));
+    sharedRect.width = new Float32Array(new SharedArrayBuffer(rectNumber * 4));
+    sharedRect.height = new Float32Array(new SharedArrayBuffer(rectNumber * 4));
+    sharedRect.type = new Uint8Array(new SharedArrayBuffer(rectNumber));
+    sharedRect.state = new Uint8Array(new SharedArrayBuffer(rectNumber));
+    sharedRect.alpha = new Float32Array(new SharedArrayBuffer(rectNumber * 4));
+    sharedRect.lineWidth = new Uint16Array(new SharedArrayBuffer(rectNumber * 2));
+    // sharedRect.style = new Uint8Array(new SharedArrayBuffer(rectNumber * 256));
+
+    const textEncoder = new TextEncoder();
+    const encodedData = textEncoder.encode(
+      JSON.stringify(
+        this.drawingDataModel.rect.map((item, i) => {
+          sharedRect.id[i] = item.id;
+          sharedRect.x[i] = item.x;
+          sharedRect.y[i] = item.y;
+          sharedRect.width[i] = item.width;
+          sharedRect.height[i] = item.height;
+          sharedRect.type[i] = item.type;
+          sharedRect.state[i] = item.state;
+          sharedRect.alpha[i] = item.alpha;
+          sharedRect.lineWidth[i] = item.lineWidth;
+          this.serializedSharedData.rect.hoverFunction[i] = item.hover;
+
+          // const encodedData = textEncoder.encode(
+          //   JSON.stringify({
+          //     fillStyle: item.fillStyle,
+          //     strokeStyle: item.strokeStyle,
+          //   }),
+          // );
+          // sharedRect.style[i * 256] = encodedData.length;
+          // sharedRect.style.set(encodedData, i * 256 + 1);
+
+          return {
+            lineDash: item.lineDash,
+            fillStyle: item.fillStyle,
+            strokeStyle: item.strokeStyle,
+          };
+        }),
+      ),
+    );
+    sharedRect.other = new Uint8Array(new SharedArrayBuffer(encodedData.length));
+    sharedRect.other.set(encodedData);
+  }
+
+  public getSerializedRectData(): any {
+    return this.serializedSharedData.rect;
+  }
+
+  public getExistedPiecesByRectId(id: number): Array<{ level: number; index: number }> {
+    const queryList: Array<{ level: number; index: number }> = [];
+    for (let level = 0; level < this.canvasArea.length; level++) {
+      const pieceList = this.canvasArea?.[level] || [];
+
+      for (let pieceIndex = 0; pieceIndex < pieceList.length; pieceIndex++) {
+        if (pieceList[pieceIndex].bitmap && pieceList[pieceIndex].rectIdList.includes(id)) {
+          queryList.push({
+            level,
+            index: pieceIndex,
+          });
+        }
+      }
+    }
+    return queryList;
+  }
+
+  public findIntersectingByLevel(currentId: number, level: number): Set<number> {
+    const pieceList = this.canvasArea?.[level];
+    const filteredList: Set<number> = new Set([]);
+    const sharedRect = this.serializedSharedData.rect.shared;
+    const currentMarginWidth =
+      sharedRect.type[currentId] === RectType.stroke ||
+      sharedRect.type[currentId] === RectType.fillAndStroke
+        ? sharedRect.lineWidth[currentId]
+        : 0;
+
+    if (pieceList) {
+      for (let { rectIdList } of pieceList) {
+        for (let id of rectIdList) {
+          const marginWidth =
+            sharedRect.type[id] === RectType.stroke ||
+            sharedRect.type[id] === RectType.fillAndStroke
+              ? sharedRect.lineWidth[id]
+              : 0;
+          if (
+            this.intersects(
+              {
+                x: sharedRect.x[id] - marginWidth,
+                y: sharedRect.y[id] - marginWidth,
+                width: sharedRect.width[id] + marginWidth * 2,
+                height: sharedRect.height[id] + marginWidth * 2,
+              },
+              {
+                x: sharedRect.x[currentId] - currentMarginWidth,
+                y: sharedRect.y[currentId] - currentMarginWidth,
+                width: sharedRect.width[currentId] + currentMarginWidth * 2,
+                height: sharedRect.height[currentId] + currentMarginWidth * 2,
+              },
+            )
+          ) {
+            filteredList.add(id);
+          }
+        }
+      }
+    }
+    return filteredList;
+  }
+
   public flush(): void {
+    // rect serialize
+    this.serializeRect();
+
     this.boundary = this.getDrawingBoundary();
+
     this.setAreaByLevel(1);
     this.setAreaByLevel(2);
     this.setAreaByLevel(3);

@@ -12,51 +12,82 @@ export default class SubCanvas {
   public retDrawRect(): Function {
     return (
       ctx: any,
+      shared: any,
+      idList: any,
+      hoverList: any,
       offsetX: number,
       offsetY: number,
-      rectListCompressed: any,
       realPieceToRenderingScale: number,
     ): void => {
-      if (!rectListCompressed) {
+      const sharedRect = shared.rect;
+      const rectIdList = idList.rect;
+      const rectHoverList = hoverList.rect;
+
+      if (rectIdList.length === 0) {
         return;
       }
 
-      const now = Date.now();
-      const retrievedData = new Uint8Array(rectListCompressed);
+      // const now = Date.now();
+
+      const retrievedData = new Uint8Array(sharedRect.other);
       const textDecoder = new TextDecoder();
-      const rectList = JSON.parse(textDecoder.decode(retrievedData));
-      console.log(rectList.length);
-      console.log(Date.now() - now);
+      const rectOtherList = JSON.parse(textDecoder.decode(retrievedData));
 
-      for (const {
-        x,
-        y,
-        width,
-        height,
-        fillStyle = '',
-        strokeStyle = '',
-        lineWidth = 1,
-        type = 0,
-        lineDash = [],
-        alpha = 1,
-        state = 0,
-      } of rectList) {
+      ctx.save();
+
+      ctx.scale(realPieceToRenderingScale, realPieceToRenderingScale);
+      ctx.translate(-offsetX, -offsetY);
+
+      for (let id of rectIdList) {
+        const x = sharedRect.x[id];
+        const y = sharedRect.y[id];
+        const width = sharedRect.width[id];
+        const height = sharedRect.height[id];
+        const fillStyle = rectOtherList[id].fillStyle || '';
+        const strokeStyle = rectOtherList[id].strokeStyle || '';
+        const lineDash = rectOtherList[id].lineDash || [];
+        const lineWidth = sharedRect.lineWidth[id] || 1;
+        const type = sharedRect.type[id] ?? 0;
+        const alpha = sharedRect.alpha[id] ?? 1;
+        const state = sharedRect.state[id] || 0;
+
+        // const styleIndex = id * 256;
+        // const encodedDataLength = sharedRect.style[styleIndex];
+        // const encodedData = sharedRect.style.slice(
+        //   styleIndex + 1,
+        //   styleIndex + 1 + encodedDataLength,
+        // );
+        // const decodedStyle = textDecoder.decode(encodedData);
+        // const style = {
+        //   fillStyle: '',
+        //   strokeStyle: '',
+        // };
+
         ctx.save();
-
         ctx.globalAlpha = alpha;
         ctx.setLineDash(lineDash);
-        ctx.fillStyle = fillStyle;
-        ctx.strokeStyle = strokeStyle;
+        ctx.fillStyle = fillStyle || '';
+        ctx.strokeStyle = strokeStyle || '';
         ctx.lineWidth = lineWidth;
 
         ctx.beginPath();
 
-        ctx.rect(
-          (x - offsetX) * realPieceToRenderingScale,
-          (y - offsetY) * realPieceToRenderingScale,
-          width * realPieceToRenderingScale,
-          height * realPieceToRenderingScale,
-        );
+        // ctx.rect(
+        //   (x - offsetX) * realPieceToRenderingScale,
+        //   (y - offsetY) * realPieceToRenderingScale,
+        //   width * realPieceToRenderingScale,
+        //   height * realPieceToRenderingScale,
+        // );
+
+        ctx.rect(x, y, width, height);
+
+        // hover
+        if (state === 1) {
+          // todo more property support
+          const hoverProperty = rectHoverList.get(id);
+          ctx.strokeStyle = hoverProperty.strokeStyle || ctx.strokeStyle;
+          ctx.fillStyle = hoverProperty.fillStyle || ctx.fillStyle;
+        }
 
         if (type === 0) {
           ctx.fill();
@@ -71,6 +102,13 @@ export default class SubCanvas {
 
         ctx.restore();
       }
+
+      ctx.restore();
+
+      // console.log(rectIdList.length);
+      // console.log(Date.now() - now + 'ms');
+
+      // console.log('------------');
     };
   }
 
@@ -85,11 +123,6 @@ export default class SubCanvas {
     return new Promise(async (resolve, reject) => {
       this.isBusy = true;
 
-      const rectListCompressed = this.geometryManager.getCanvasAreaCompressedList(
-        level,
-        pieceIndex,
-      );
-
       this.blob_str = new Blob(
         [
           `
@@ -100,11 +133,14 @@ export default class SubCanvas {
             const offsetX = e.data.offsetX;
             const offsetY = e.data.offsetY;
 
-            const rectListCompressed = e.data.rectListCompressed;
+            const shared = e.data.shared;
+            const idList = e.data.idList;
+            const hoverList = e.data.hoverList;
+
             const realPieceToRenderingScale = e.data.realPieceToRenderingScale;
             const ctx = canvas.getContext('2d');
 
-            drawRect(ctx,offsetX,offsetY,rectListCompressed,realPieceToRenderingScale);
+            drawRect(ctx,e.data.shared,idList,hoverList,offsetX,offsetY,realPieceToRenderingScale);
 
             self.postMessage(canvas.transferToImageBitmap());
 
@@ -118,17 +154,27 @@ export default class SubCanvas {
       this.worker.addEventListener('message', (msg) => {
         this.isBusy = false;
         this.setCharacter('');
-        console.timeEnd(`${this.characterHash} time`);
         resolve(msg.data);
       });
+
+      // rect
+      const serializedRectData = this.geometryManager.getSerializedRectData();
 
       this.worker.postMessage(
         {
           canvas: offscreenCanvas,
-          rectListCompressed,
           realPieceToRenderingScale,
           offsetX,
           offsetY,
+          shared: {
+            rect: serializedRectData.shared,
+          },
+          idList: {
+            rect: this.geometryManager.getCanvasAreaIdList(level, pieceIndex),
+          },
+          hoverList: {
+            rect: serializedRectData.hoverIdList,
+          },
         },
         [offscreenCanvas],
       );
@@ -141,7 +187,6 @@ export default class SubCanvas {
 
   public setCharacter(str: string): string {
     this.characterHash = str;
-    console.time(`${this.characterHash} time`);
     return this.characterHash;
   }
 
