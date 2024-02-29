@@ -23,6 +23,7 @@ export type RectProperty = {
   lineDash?: Array<number>;
   alpha?: number;
   hover?: Function;
+  click?: Function;
   state?: RectState;
 };
 

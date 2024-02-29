@@ -15,6 +15,7 @@ export default class SubCanvas {
       shared: any,
       idList: any,
       hoverList: any,
+      checkedList: any,
       offsetX: number,
       offsetY: number,
       realPieceToRenderingScale: number,
@@ -22,6 +23,7 @@ export default class SubCanvas {
       const sharedRect = shared.rect;
       const rectIdList = idList.rect;
       const rectHoverList = hoverList.rect;
+      const rectCheckedList = checkedList.rect;
 
       if (rectIdList.length === 0) {
         return;
@@ -63,7 +65,6 @@ export default class SubCanvas {
         //   strokeStyle: '',
         // };
 
-        ctx.save();
         ctx.globalAlpha = alpha;
         ctx.setLineDash(lineDash);
         ctx.fillStyle = fillStyle || '';
@@ -71,13 +72,6 @@ export default class SubCanvas {
         ctx.lineWidth = lineWidth;
 
         ctx.beginPath();
-
-        // ctx.rect(
-        //   (x - offsetX) * realPieceToRenderingScale,
-        //   (y - offsetY) * realPieceToRenderingScale,
-        //   width * realPieceToRenderingScale,
-        //   height * realPieceToRenderingScale,
-        // );
 
         ctx.rect(x, y, width, height);
 
@@ -87,6 +81,11 @@ export default class SubCanvas {
           const hoverProperty = rectHoverList.get(id);
           ctx.strokeStyle = hoverProperty.strokeStyle || ctx.strokeStyle;
           ctx.fillStyle = hoverProperty.fillStyle || ctx.fillStyle;
+        } else if (state === 2) {
+          // todo more property support
+          const checkedProperty = rectCheckedList.get(id);
+          ctx.strokeStyle = checkedProperty.strokeStyle || ctx.strokeStyle;
+          ctx.fillStyle = checkedProperty.fillStyle || ctx.fillStyle;
         }
 
         if (type === 0) {
@@ -98,9 +97,7 @@ export default class SubCanvas {
           ctx.fill();
         }
 
-        ctx.closePath();
-
-        ctx.restore();
+        // ctx.closePath();
       }
 
       ctx.restore();
@@ -136,11 +133,12 @@ export default class SubCanvas {
             const shared = e.data.shared;
             const idList = e.data.idList;
             const hoverList = e.data.hoverList;
+            const checkedList = e.data.checkedList;
 
             const realPieceToRenderingScale = e.data.realPieceToRenderingScale;
             const ctx = canvas.getContext('2d');
 
-            drawRect(ctx,e.data.shared,idList,hoverList,offsetX,offsetY,realPieceToRenderingScale);
+            drawRect(ctx,e.data.shared,idList,hoverList,checkedList,offsetX,offsetY,realPieceToRenderingScale);
 
             self.postMessage(canvas.transferToImageBitmap());
 
@@ -174,6 +172,9 @@ export default class SubCanvas {
           },
           hoverList: {
             rect: serializedRectData.hoverIdList,
+          },
+          checkedList: {
+            rect: serializedRectData.checkedIdList,
           },
         },
         [offscreenCanvas],

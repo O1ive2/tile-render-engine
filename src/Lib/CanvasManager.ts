@@ -1,3 +1,4 @@
+import throttle from 'lodash/throttle';
 import { RectState, RectType } from '../Type/Geometry.type';
 import { maxThreads } from '../config';
 import GeometryManager from './GeometryManager';
@@ -25,6 +26,13 @@ export default class CanvasManager {
   private realWidth = 0;
   private realHeight = 0;
 
+  // lock
+  private opLock = {
+    zoom: false,
+    hover: false,
+    click: false,
+  };
+
   get maxScaleOnLevel() {
     return 2 << (this.level * 2 - 2);
   }
@@ -43,20 +51,47 @@ export default class CanvasManager {
     this.mainCanvas = canvas;
     this.mainCtx = <CanvasRenderingContext2D>canvas.getContext('2d');
     this.subCanvasList = Array.from({ length: maxThreads }, () => new SubCanvas());
-    this.on('zoom', (transform: any) => {
-      this.updateTransform(transform);
-    });
+    this.on(
+      'zoom',
+      (transform: any) => {
+        this.opLock.hover = true;
+        this.opLock.click = true;
+        this.updateTransform(transform);
+      },
+      () => {
+        setTimeout(() => {
+          this.opLock.hover = false;
+          this.opLock.click = false;
+        }, 0);
+      },
+    );
 
-    this.on('hover', ({ x, y }: { x: number; y: number }) => {
-      this.updateHover(x, y);
+    this.on(
+      'hover',
+      throttle(
+        ({ x, y }: { x: number; y: number }) => {
+          if (!this.opLock.hover) {
+            this.updateHover(x, y);
+          }
+        },
+        30,
+        {
+          leading: true,
+          trailing: false,
+        },
+      ),
+    );
+
+    this.on('click', ({ x, y }: { x: number; y: number }) => {
+      if (!this.opLock.click) {
+        this.updateCheck(x, y);
+      }
     });
 
     this.render();
   }
 
   public updateCanvasByGeometryId(id: number): void {
-    // console.time(`${id}@${0} time:`);
-
     const boundary = this.geometryManager.getBoundary();
 
     const originalRectData = this.geometryManager.getOriginalRectList();
@@ -76,20 +111,22 @@ export default class CanvasManager {
 
     const pieceList = this.geometryManager.getExistedPiecesByRectId(id);
 
-    // console.log(pieceList.length, pieceList);
-
     for (let i = 0; i < pieceList.length; i++) {
       const { level, index } = pieceList[i];
 
       const pieceIndexList = this.geometryManager.getCanvasAreaIdList(level, index);
-      const filteredIntersectList = pieceIndexList.filter((x: number) => itersectList.has(x));
+      const filteredIntersectList = new Set<number>(
+        pieceIndexList.filter((x: number) => itersectList.has(x)),
+      );
 
-      const indexX = index % this.sideNumberOnLevel;
-      const indexY = Math.floor(index / this.sideNumberOnLevel);
-      const realX = (indexX * this.realWidth) / this.sideNumberOnLevel;
-      const realY = (indexY * this.realHeight) / this.sideNumberOnLevel;
+      const sideNumber = (1 << level);
 
-      const realPieceToRenderingScale = this.sideNumberOnLevel * this.renderingToRealScale;
+      const indexX = index % sideNumber;
+      const indexY = Math.floor(index / sideNumber);
+      const realX = (indexX * this.realWidth) / sideNumber;
+      const realY = (indexY * this.realHeight) / sideNumber;
+
+      const realPieceToRenderingScale = sideNumber * this.renderingToRealScale;
 
       const clipX = (x - realX - boundary[0] - marginWidth / 2) * realPieceToRenderingScale;
       const clipY = (y - realY - boundary[2] - marginWidth / 2) * realPieceToRenderingScale;
@@ -125,16 +162,8 @@ export default class CanvasManager {
         const strokeStyle = originalRectData[id].strokeStyle || '';
         const lineDash = originalRectData[id].lineDash || [];
 
-        ctx.save();
-
         ctx.beginPath();
 
-        // ctx.rect(
-        //   (x - realX - boundary[0]) * realPieceToRenderingScale,
-        //   (y - realY - boundary[2]) * realPieceToRenderingScale,
-        //   width * realPieceToRenderingScale,
-        //   height * realPieceToRenderingScale,
-        // );
         ctx.rect(x, y, width, height);
 
         ctx.globalAlpha = alpha;
@@ -149,6 +178,11 @@ export default class CanvasManager {
           const hoverProperty = serializedRectData.hoverIdList.get(id);
           ctx.strokeStyle = hoverProperty.strokeStyle || ctx.strokeStyle;
           ctx.fillStyle = hoverProperty.fillStyle || ctx.fillStyle;
+        } else if (state === 2) {
+          // todo more property support
+          const checkedProperty = serializedRectData.checkedIdList.get(id);
+          ctx.strokeStyle = checkedProperty.strokeStyle || ctx.strokeStyle;
+          ctx.fillStyle = checkedProperty.fillStyle || ctx.fillStyle;
         }
 
         if (type === 0) {
@@ -160,12 +194,23 @@ export default class CanvasManager {
           ctx.fill();
         }
 
-        ctx.closePath();
-
-        ctx.restore();
+        // ctx.closePath();
       }
 
       ctx.restore();
+
+      // console.log(level, index, offscreenCanvas);
+
+      // const img = new Image();
+      // offscreenCanvas
+      //   .convertToBlob()
+      //   .then((data) => {
+      //     img.src = URL.createObjectURL(data);
+      //     img.onload = () => {
+      //       // console.log(chip, scale);
+      //     };
+      //   })
+      //   .catch((e) => {});
 
       this.geometryManager.setCanvasArea(level, index, offscreenCanvas);
     }
@@ -191,19 +236,6 @@ export default class CanvasManager {
         bitmap,
       });
     }
-
-    // console.timeEnd(`${id}@${0} time:`);
-
-    // const img = new Image();
-    // offscreenCanvas
-    //   .convertToBlob()
-    //   .then((data) => {
-    //     img.src = URL.createObjectURL(data);
-    //     img.onload = () => {
-    //       // console.log(chip, scale);
-    //     };
-    //   })
-    //   .catch((e) => {});
   }
 
   public updateHover(pointerX: number, pointerY: number) {
@@ -255,15 +287,20 @@ export default class CanvasManager {
         break;
       }
       const id = result.value;
-      const initialX = (sharedRectData.x[id] - boundary[0]) * scale + totalOffsetX;
-      const initialY = (sharedRectData.y[id] - boundary[2]) * scale + totalOffsetY;
+      const initialX =
+        (sharedRectData.x[id] - boundary[0] - sharedRectData.lineWidth[id] / 2) * scale +
+        totalOffsetX;
+      const initialY =
+        (sharedRectData.y[id] - boundary[2] - sharedRectData.lineWidth[id] / 2) * scale +
+        totalOffsetY;
       const state = sharedRectData.state[id];
       if (
         !(
           pointerX >= initialX &&
-          pointerX <= initialX + sharedRectData.width[id] * scale &&
+          pointerX <=
+            initialX + (sharedRectData.width[id] + sharedRectData.lineWidth[id]) * scale &&
           pointerY >= initialY &&
-          pointerY <= initialY + sharedRectData.height[id] * scale
+          pointerY <= initialY + (sharedRectData.height[id] + sharedRectData.lineWidth[id]) * scale
         )
       ) {
         if (state === RectState.hover) {
@@ -274,25 +311,30 @@ export default class CanvasManager {
       }
     }
 
-    // const id = rectIdList[rectIdList.length - 1];
+    for (let id of rectIdList.slice().reverse()) {
+      if (!serializedRectData.hoverFunction[id]) {
+        continue;
+      }
 
-    for (let id of rectIdList) {
-      const initialX = (sharedRectData.x[id] - boundary[0]) * scale + totalOffsetX;
-      const initialY = (sharedRectData.y[id] - boundary[2]) * scale + totalOffsetY;
+      const initialX =
+        (sharedRectData.x[id] - boundary[0] - sharedRectData.lineWidth[id] / 2) * scale +
+        totalOffsetX;
+      const initialY =
+        (sharedRectData.y[id] - boundary[2] - sharedRectData.lineWidth[id] / 2) * scale +
+        totalOffsetY;
       const state = sharedRectData.state[id];
       if (
         pointerX >= initialX &&
-        pointerX <= initialX + sharedRectData.width[id] * scale &&
+        pointerX <= initialX + (sharedRectData.width[id] + sharedRectData.lineWidth[id]) * scale &&
         pointerY >= initialY &&
-        pointerY <= initialY + sharedRectData.height[id] * scale
+        pointerY <= initialY + (sharedRectData.height[id] + sharedRectData.lineWidth[id]) * scale
       ) {
         if (
           state === RectState.hover ||
           state === RectState.checked ||
           serializedRectData.hoverIdList.has(id)
         ) {
-          continue;
-          return;
+          break;
         }
 
         sharedRectData.state[id] = RectState.hover;
@@ -302,6 +344,8 @@ export default class CanvasManager {
         serializedRectData.hoverIdList.set(id, rectProperty);
 
         this.updateCanvasByGeometryId(id);
+
+        break;
       }
     }
   }
@@ -349,6 +393,84 @@ export default class CanvasManager {
     }
   }
 
+  public updateCheck(pointerX: number, pointerY: number) {
+    const boundary = this.geometryManager.getBoundary();
+
+    const totalOffsetX =
+      this.renderingOffsetX +
+      ((this.mainCanvas.width - this.initialRenderingWidth) / 2) * this.renderingScale;
+
+    const totalOffsetY =
+      this.renderingOffsetY +
+      ((this.mainCanvas.height - this.initialRenderingHeight) / 2) * this.renderingScale;
+
+    const scale = this.renderingToRealScale * this.renderingScale;
+
+    // deeper level less query
+    const level = this.level > 3 ? this.level : 3;
+    const sideNumber = 1 << level;
+
+    const pieceIndexX = Math.floor(
+      ((pointerX - totalOffsetX) / (boundary[4] * scale)) * sideNumber,
+    );
+
+    const pieceIndexY = Math.floor(
+      ((pointerY - totalOffsetY) / (boundary[5] * scale)) * sideNumber,
+    );
+
+    if (
+      pieceIndexX < 0 ||
+      pieceIndexX >= sideNumber ||
+      pieceIndexY < 0 ||
+      pieceIndexY >= sideNumber
+    ) {
+      return;
+    }
+
+    const pieceIndex = pieceIndexX + pieceIndexY * sideNumber;
+
+    // rect
+
+    const rectIdList = this.geometryManager.getCanvasAreaIdList(level, pieceIndex);
+    const serializedRectData = this.geometryManager.getSerializedRectData();
+    const sharedRectData = serializedRectData.shared;
+
+    for (let id of rectIdList.slice().reverse()) {
+      if (!serializedRectData.clickFunction[id]) {
+        continue;
+      }
+
+      const initialX =
+        (sharedRectData.x[id] - boundary[0] - sharedRectData.lineWidth[id] / 2) * scale +
+        totalOffsetX;
+      const initialY =
+        (sharedRectData.y[id] - boundary[2] - sharedRectData.lineWidth[id] / 2) * scale +
+        totalOffsetY;
+      const state = sharedRectData.state[id];
+      if (
+        pointerX >= initialX &&
+        pointerX <= initialX + (sharedRectData.width[id] + sharedRectData.lineWidth[id]) * scale &&
+        pointerY >= initialY &&
+        pointerY <= initialY + (sharedRectData.height[id] + sharedRectData.lineWidth[id]) * scale
+      ) {
+        if (state === RectState.checked || serializedRectData.checkedIdList.has(id)) {
+          console.log(id);
+          break;
+        }
+
+        sharedRectData.state[id] = RectState.checked;
+
+        const rectProperty = serializedRectData.clickFunction[id]?.(id);
+
+        serializedRectData.checkedIdList.set(id, rectProperty);
+
+        this.updateCanvasByGeometryId(id);
+
+        break;
+      }
+    }
+  }
+
   public getWidth(): number {
     return this.mainCanvas.width;
   }
@@ -361,7 +483,7 @@ export default class CanvasManager {
     return this.mainCanvas;
   }
 
-  public on(event: string, callback: any): void {
+  public on(event: string, callback: any, callbackEnd?: any): void {
     const canvas = this.mainCanvas;
     if (event === 'zoom') {
       let k = 1;
@@ -396,6 +518,7 @@ export default class CanvasManager {
         'pointerup',
         () => {
           draggable = false;
+          callbackEnd && callbackEnd();
         },
         false,
       );
@@ -403,6 +526,7 @@ export default class CanvasManager {
         'pointerout',
         () => {
           draggable = false;
+          callbackEnd && callbackEnd();
         },
         false,
       );
@@ -422,6 +546,7 @@ export default class CanvasManager {
               }
             }
             callback({ k, x, y });
+            callbackEnd && callbackEnd();
           }
         },
         false,
@@ -430,6 +555,14 @@ export default class CanvasManager {
       canvas.addEventListener(
         'pointermove',
         (event: PointerEvent) => {
+          callback({ x: event.offsetX, y: event.offsetY });
+        },
+        false,
+      );
+    } else if (event === 'click') {
+      canvas.addEventListener(
+        'click',
+        (event: MouseEvent) => {
           callback({ x: event.offsetX, y: event.offsetY });
         },
         false,

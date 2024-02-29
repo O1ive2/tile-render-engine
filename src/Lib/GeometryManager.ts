@@ -32,7 +32,9 @@ export default class GeometryManager {
         style: null,
       },
       hoverFunction: [],
+      clickFunction: [],
       hoverIdList: new Map(),
+      checkedIdList: new Map(),
     },
   };
 
@@ -274,6 +276,7 @@ export default class GeometryManager {
           sharedRect.alpha[i] = item.alpha;
           sharedRect.lineWidth[i] = item.lineWidth;
           this.serializedSharedData.rect.hoverFunction[i] = item.hover;
+          this.serializedSharedData.rect.clickFunction[i] = item.click;
 
           // const encodedData = textEncoder.encode(
           //   JSON.stringify({
@@ -338,16 +341,16 @@ export default class GeometryManager {
           if (
             this.intersects(
               {
-                x: sharedRect.x[id] - marginWidth,
-                y: sharedRect.y[id] - marginWidth,
-                width: sharedRect.width[id] + marginWidth * 2,
-                height: sharedRect.height[id] + marginWidth * 2,
+                x: sharedRect.x[id] - marginWidth / 2,
+                y: sharedRect.y[id] - marginWidth / 2,
+                width: sharedRect.width[id] + marginWidth,
+                height: sharedRect.height[id] + marginWidth,
               },
               {
-                x: sharedRect.x[currentId] - currentMarginWidth,
-                y: sharedRect.y[currentId] - currentMarginWidth,
-                width: sharedRect.width[currentId] + currentMarginWidth * 2,
-                height: sharedRect.height[currentId] + currentMarginWidth * 2,
+                x: sharedRect.x[currentId] - currentMarginWidth / 2,
+                y: sharedRect.y[currentId] - currentMarginWidth / 2,
+                width: sharedRect.width[currentId] + currentMarginWidth,
+                height: sharedRect.height[currentId] + currentMarginWidth,
               },
             )
           ) {
