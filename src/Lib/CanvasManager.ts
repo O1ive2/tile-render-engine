@@ -1,5 +1,5 @@
 import throttle from 'lodash/throttle';
-import { RectState, RectType } from '../Type/Geometry.type';
+import { CommonState, PathProperty, RectProperty, TextProperty } from '../Type/Geometry.type';
 import { maxThreads } from '../config';
 import GeometryManager from './GeometryManager';
 import Paint from './Paint';
@@ -91,115 +91,260 @@ export default class CanvasManager {
     this.render();
   }
 
-  public updateCanvasByGeometryId(id: number): void {
+  public updateCanvasByGeometryId(geometryType: number, id: number): void {
     const boundary = this.geometryManager.getBoundary();
+    const imageMap = this.geometryManager.getImageMap();
 
-    const originalRectData = this.geometryManager.getOriginalRectList();
-    const serializedRectData = this.geometryManager.getSerializedRectData();
-    const sharedRectData = this.geometryManager.getSerializedRectData().shared;
+    let sharedItem = null;
+    let serializedData = null;
+    let originalData = null;
+    let borderWidth = 0;
+    let width = 0;
+    let height = 0;
 
-    const x = sharedRectData.x[id];
-    const y = sharedRectData.y[id];
-    const width = sharedRectData.width[id];
-    const height = sharedRectData.height[id];
-    const type = sharedRectData.type[id];
-    const lineWidth = sharedRectData.lineWidth[id];
-    const marginWidth = type === RectType.stroke || type === RectType.fillAndStroke ? lineWidth : 0;
+    let x = 0;
+    let y = 0;
+
+    if (geometryType === 0) {
+      originalData = this.geometryManager.getOriginalRectList();
+      serializedData = this.geometryManager.getSerializedRectData();
+      sharedItem = serializedData.shared;
+      borderWidth = sharedItem.lineWidth[id];
+      width = sharedItem.width[id];
+      height = sharedItem.height[id];
+      x = sharedItem.x[id];
+      y = sharedItem.y[id];
+    } else if (geometryType === 1) {
+      originalData = this.geometryManager.getOriginalTextList();
+      serializedData = this.geometryManager.getSerializedTextData();
+      sharedItem = serializedData.shared;
+      width = sharedItem.width[id];
+      height = sharedItem.height[id];
+      x = sharedItem.x[id];
+      y = sharedItem.y[id];
+    } else if (geometryType === 2) {
+      originalData = this.geometryManager.getOriginalImageList();
+      serializedData = this.geometryManager.getSerializedImageData();
+      sharedItem = serializedData.shared;
+      const imageInfo = imageMap.get(sharedItem.imageIndex[id]);
+      width = imageInfo.width;
+      height = imageInfo.height;
+      x = sharedItem.x[id];
+      y = sharedItem.y[id];
+    } else if (geometryType === 3) {
+      originalData = this.geometryManager.getOriginalPathList();
+      serializedData = this.geometryManager.getSerializedPathData();
+      sharedItem = serializedData.shared;
+      width = originalData.get(id)?.width ?? 0;
+      height = originalData.get(id)?.height ?? 0;
+      x = originalData.get(id)?.x ?? 0;
+      y = originalData.get(id)?.y ?? 0;
+    }
+
+    const intersect = this.geometryManager.findIntersecting(geometryType, id);
 
     // find intersecting
-    const itersectList = this.geometryManager.findIntersectingByLevel(id, 3);
 
-    const pieceList = this.geometryManager.getExistedPiecesByRectId(id);
+    const pieceList = this.geometryManager.getExistedPiecesById(id);
 
     for (let i = 0; i < pieceList.length; i++) {
       const { level, index } = pieceList[i];
 
-      const pieceIndexList = this.geometryManager.getCanvasAreaIdList(level, index);
-      const filteredIntersectList = new Set<number>(
-        pieceIndexList.filter((x: number) => itersectList.has(x)),
-      );
+      const bitmap = this.geometryManager.getCanvasAreaBitmap(level, index);
+      const canvasArea = this.geometryManager.getCanvasArea(level, index);
 
-      const sideNumber = (1 << level);
+      const filteredIdList: Array<number> = [];
+      const filteredTypeList: Array<number> = [];
 
+      canvasArea.idList.forEach((id: number, index: number) => {
+        const type = canvasArea.typeList[index];
+        if (
+          intersect.idList.some((intersectId: number, intersectIndex) => {
+            return intersectId === id && intersect.typeList[intersectIndex] === type;
+          })
+        ) {
+          filteredIdList.push(id);
+          filteredTypeList.push(type);
+        }
+      });
+
+      const globalLineCaps = ['butt', 'round', 'square'];
+      const sideNumber = 1 << level;
       const indexX = index % sideNumber;
       const indexY = Math.floor(index / sideNumber);
       const realX = (indexX * this.realWidth) / sideNumber;
       const realY = (indexY * this.realHeight) / sideNumber;
-
       const realPieceToRenderingScale = sideNumber * this.renderingToRealScale;
+      // const clipX = (x) * realPieceToRenderingScale;
+      // const clipY = (y - borderWidth / 2) * realPieceToRenderingScale;
+      // const clipWidth = (width + borderWidth) * realPieceToRenderingScale;
+      // const clipHeight = (height + borderWidth) * realPieceToRenderingScale;
 
-      const clipX = (x - realX - boundary[0] - marginWidth / 2) * realPieceToRenderingScale;
-      const clipY = (y - realY - boundary[2] - marginWidth / 2) * realPieceToRenderingScale;
-      const clipWidth = (width + marginWidth) * realPieceToRenderingScale;
-      const clipHeight = (height + marginWidth) * realPieceToRenderingScale;
-
-      const bitmap = this.geometryManager.getCanvasAreaBitmap(level, index);
       const offscreenCanvas = new OffscreenCanvas(bitmap.width, bitmap.height);
       const ctx = <OffscreenCanvasRenderingContext2D>offscreenCanvas.getContext('2d');
       ctx.drawImage(bitmap, 0, 0, bitmap.width, bitmap.height);
-      ctx.clearRect(clipX, clipY, clipWidth, clipHeight);
-
-      ctx.beginPath();
-      ctx.rect(clipX, clipY, clipWidth, clipHeight);
-      ctx.clip();
 
       ctx.save();
 
       ctx.scale(realPieceToRenderingScale, realPieceToRenderingScale);
-      ctx.translate(-(realX + boundary[0]), -(realY + boundary[2]));
+      ctx.translate(
+        -(realX + boundary[0] + borderWidth / 2),
+        -(realY + boundary[2] + borderWidth / 2),
+      );
 
-      // draw intersects
-      for (let id of filteredIntersectList) {
-        const x = sharedRectData.x[id];
-        const y = sharedRectData.y[id];
-        const width = sharedRectData.width[id];
-        const height = sharedRectData.height[id];
-        const lineWidth = sharedRectData.lineWidth[id] || 1;
-        const type = sharedRectData.type[id] ?? 0;
-        const alpha = sharedRectData.alpha[id] ?? 1;
-        const state = sharedRectData.state[id] || 0;
-        const fillStyle = originalRectData[id].fillStyle || '';
-        const strokeStyle = originalRectData[id].strokeStyle || '';
-        const lineDash = originalRectData[id].lineDash || [];
+      ctx.clearRect(x, y, width + borderWidth, height + borderWidth);
 
-        ctx.beginPath();
+      ctx.beginPath();
+      ctx.rect(x, y, width + borderWidth, height + borderWidth);
+      ctx.clip();
 
-        ctx.rect(x, y, width, height);
+      for (let i = 0; i < filteredIdList.length; i++) {
+        const id = filteredIdList[i];
+        const geometryType = filteredTypeList[i];
+        const x = sharedItem.x?.[id];
+        const y = sharedItem.y?.[id];
+        const alpha = sharedItem.alpha[id] ?? 1;
+        const state = sharedItem.state[id] || 0;
+        if (geometryType === 0) {
+          originalData = <Map<number, RectProperty>>originalData;
+          const width = sharedItem.width[id];
+          const height = sharedItem.height[id];
+          const fillStyle = originalData.get(id)?.fillStyle || '';
+          const strokeStyle = originalData.get(id)?.strokeStyle || '';
+          const lineDash = originalData.get(id)?.lineDash || [];
+          const lineWidth = sharedItem.lineWidth[id] || 1;
+          const type = sharedItem.type[id] ?? 0;
 
-        ctx.globalAlpha = alpha;
-        ctx.setLineDash(lineDash);
-        ctx.fillStyle = fillStyle || '';
-        ctx.strokeStyle = strokeStyle || '';
-        ctx.lineWidth = lineWidth;
+          ctx.globalAlpha = alpha;
+          ctx.setLineDash(lineDash);
+          ctx.fillStyle = fillStyle || '';
+          ctx.strokeStyle = strokeStyle || '';
+          ctx.lineWidth = lineWidth;
 
-        // hover
-        if (state === 1) {
-          // todo more property support
-          const hoverProperty = serializedRectData.hoverIdList.get(id);
-          ctx.strokeStyle = hoverProperty.strokeStyle || ctx.strokeStyle;
-          ctx.fillStyle = hoverProperty.fillStyle || ctx.fillStyle;
-        } else if (state === 2) {
-          // todo more property support
-          const checkedProperty = serializedRectData.checkedIdList.get(id);
-          ctx.strokeStyle = checkedProperty.strokeStyle || ctx.strokeStyle;
-          ctx.fillStyle = checkedProperty.fillStyle || ctx.fillStyle;
-        }
+          ctx.beginPath();
+          ctx.rect(x, y, width, height);
 
-        if (type === 0) {
-          ctx.fill();
-        } else if (type === 1) {
+          // hover
+          if (state === 1) {
+            // todo more property support
+            const hoverProperty = serializedData.hoverIdList.get(id);
+            ctx.globalAlpha = hoverProperty.alpha || ctx.globalAlpha;
+            ctx.strokeStyle = hoverProperty.strokeStyle || ctx.strokeStyle;
+            ctx.fillStyle = hoverProperty.fillStyle || ctx.fillStyle;
+          } else if (state === 2) {
+            // todo more property support
+            const checkedProperty = serializedData.checkedIdList.get(id);
+            ctx.globalAlpha = checkedProperty.alpha || ctx.globalAlpha;
+            ctx.strokeStyle = checkedProperty.strokeStyle || ctx.strokeStyle;
+            ctx.fillStyle = checkedProperty.fillStyle || ctx.fillStyle;
+          }
+
+          if (type === 0) {
+            ctx.fill();
+          } else if (type === 1) {
+            ctx.stroke();
+          } else if (type === 2) {
+            ctx.stroke();
+            ctx.fill();
+          }
+
+          ctx.closePath();
+        } else if (geometryType === 1) {
+          originalData = <Map<number, TextProperty>>originalData;
+          const width = sharedItem.width[id];
+          const height = sharedItem.height[id];
+          const fontSize = sharedItem.fontSize[id];
+          const content = originalData.get(id)?.content || '';
+          const fillStyle = originalData.get(id)?.fillStyle || '';
+
+          // direction?: 'ltr' | 'rtl' | 'inherit';
+
+          ctx.globalAlpha = alpha;
+          ctx.fillStyle = fillStyle || '#000';
+
+          ctx.font = `${fontSize}px sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(content, x, y);
+        } else if (geometryType === 2) {
+          const { width, height, img, hoverImg, checkImg } = imageMap.get(
+            sharedItem.imageIndex[id],
+          );
+
+          ctx.save();
+
+          ctx.globalAlpha = alpha;
+
+          let renderingImg = img;
+
+          if (state === 1) {
+            // todo more property support
+            const hoverProperty = serializedData.hoverIdList.get(id);
+            ctx.globalAlpha = hoverProperty.alpha || ctx.globalAlpha;
+            renderingImg = hoverImg;
+          } else if (state === 2) {
+            // todo more property support
+            const checkedProperty = serializedData.checkedIdList.get(id);
+            ctx.globalAlpha = checkedProperty.alpha || ctx.globalAlpha;
+            renderingImg = checkImg;
+          }
+
+          ctx.drawImage(renderingImg, x, y, width, height);
+
+          // if (state === 1) {
+          //   const hoverProperty = serializedData.hoverIdList.get(id);
+          //   ctx.globalCompositeOperation = 'source-in';
+          //   ctx.fillStyle = hoverProperty.strokeStyle;
+          //   ctx.fillRect(x, y, width, height);
+          // } else if (state === 2) {
+          //   const checkedProperty = serializedData.checkedIdList.get(id);
+          //   ctx.globalCompositeOperation = 'source-in';
+          //   ctx.fillStyle = checkedProperty.strokeStyle;
+          //   ctx.fillRect(x, y, width, height);
+          // }
+
+          ctx.restore();
+        } else if (geometryType === 3) {
+          const fromX = sharedItem.fromX[id];
+          const fromY = sharedItem.fromY[id];
+          const toX = sharedItem.toX[id];
+          const toY = sharedItem.toY[id];
+          const lineCap = sharedItem.lineCap[id] ?? 0;
+          const lineWidth = sharedItem.lineWidth[id] || 1;
+          const lineDash = (<PathProperty>originalData?.get(id)).lineDash || [];
+          const strokeStyle = (<PathProperty>originalData?.get(id)).strokeStyle || '';
+          const state = sharedItem.state[id];
+
+          ctx.save();
+
+          ctx.globalAlpha = alpha;
+          ctx.setLineDash(lineDash);
+          ctx.strokeStyle = strokeStyle || '';
+          ctx.lineWidth = lineWidth;
+          ctx.lineCap = <CanvasLineCap>globalLineCaps[lineCap];
+
+          // hover
+          if (state === 1) {
+            // todo more property support
+            const hoverProperty = serializedData.hoverIdList.get(id);
+            ctx.globalAlpha = hoverProperty.alpha || ctx.globalAlpha;
+            ctx.strokeStyle = hoverProperty.strokeStyle || ctx.strokeStyle;
+          } else if (state === 2) {
+            // todo more property support
+            const checkedProperty = serializedData.checkedIdList.get(id);
+            ctx.globalAlpha = checkedProperty.alpha || ctx.globalAlpha;
+            ctx.strokeStyle = checkedProperty.strokeStyle || ctx.strokeStyle;
+          }
+
+          ctx.moveTo(fromX, fromY);
+          ctx.lineTo(toX, toY);
           ctx.stroke();
-        } else if (type === 2) {
-          ctx.stroke();
-          ctx.fill();
-        }
 
-        // ctx.closePath();
+          ctx.restore();
+        }
       }
 
       ctx.restore();
-
-      // console.log(level, index, offscreenCanvas);
 
       // const img = new Image();
       // offscreenCanvas
@@ -274,76 +419,170 @@ export default class CanvasManager {
 
     const pieceIndex = pieceIndexX + pieceIndexY * sideNumber;
 
-    // rect
+    const pieceInfo = this.geometryManager.getCanvasArea(level, pieceIndex);
 
-    const rectIdList = this.geometryManager.getCanvasAreaIdList(level, pieceIndex);
     const serializedRectData = this.geometryManager.getSerializedRectData();
-    const sharedRectData = serializedRectData.shared;
+    const serializedTextData = this.geometryManager.getSerializedTextData();
+    const serializedImageData = this.geometryManager.getSerializedImageData();
+    const serializedPathData = this.geometryManager.getSerializedPathData();
 
-    const iterator = serializedRectData.hoverIdList.keys();
-    while (true) {
-      const result = iterator.next();
-      if (result.done) {
-        break;
-      }
-      const id = result.value;
+    // rect & image & path
+    const sharedRect = serializedRectData.shared;
+    const sharedText = serializedTextData.shared;
+    const sharedImage = serializedImageData.shared;
+    const sharedPath = serializedPathData.shared;
+
+    // origin
+    const originalPathData = this.geometryManager.getOriginalPathList();
+
+    // image map
+    const imageMap = this.geometryManager.getImageMap();
+
+    // remove hover state
+    for (let [id] of serializedRectData.hoverIdList) {
       const initialX =
-        (sharedRectData.x[id] - boundary[0] - sharedRectData.lineWidth[id] / 2) * scale +
-        totalOffsetX;
+        (sharedRect.x[id] - boundary[0] - sharedRect.lineWidth[id] / 2) * scale + totalOffsetX;
       const initialY =
-        (sharedRectData.y[id] - boundary[2] - sharedRectData.lineWidth[id] / 2) * scale +
-        totalOffsetY;
-      const state = sharedRectData.state[id];
+        (sharedRect.y[id] - boundary[2] - sharedRect.lineWidth[id] / 2) * scale + totalOffsetY;
+      const state = sharedRect.state[id];
       if (
         !(
           pointerX >= initialX &&
-          pointerX <=
-            initialX + (sharedRectData.width[id] + sharedRectData.lineWidth[id]) * scale &&
+          pointerX <= initialX + (sharedRect.width[id] + sharedRect.lineWidth[id]) * scale &&
           pointerY >= initialY &&
-          pointerY <= initialY + (sharedRectData.height[id] + sharedRectData.lineWidth[id]) * scale
+          pointerY <= initialY + (sharedRect.height[id] + sharedRect.lineWidth[id]) * scale
         )
       ) {
-        if (state === RectState.hover) {
+        if (state === CommonState.hover) {
           serializedRectData.hoverIdList.delete(id);
-          sharedRectData.state[id] = RectState.normal;
-          this.updateCanvasByGeometryId(id);
+          sharedRect.state[id] = CommonState.normal;
+          this.updateCanvasByGeometryId(0, id);
         }
       }
     }
 
-    for (let id of rectIdList.slice().reverse()) {
-      if (!serializedRectData.hoverFunction[id]) {
+    for (let [id] of serializedImageData.hoverIdList) {
+      const initialX = (sharedImage.x[id] - boundary[0]) * scale + totalOffsetX;
+      const initialY = (sharedImage.y[id] - boundary[2]) * scale + totalOffsetY;
+      const { width, height } = imageMap.get(sharedImage.imageIndex[id]);
+      const state = sharedImage.state[id];
+      if (
+        !(
+          pointerX >= initialX &&
+          pointerX <= initialX + width * scale &&
+          pointerY >= initialY &&
+          pointerY <= initialY + height * scale
+        )
+      ) {
+        if (state === CommonState.hover) {
+          serializedImageData.hoverIdList.delete(id);
+          sharedImage.state[id] = CommonState.normal;
+          this.updateCanvasByGeometryId(2, id);
+        }
+      }
+    }
+
+    for (let [id] of serializedPathData.hoverIdList) {
+      const pathInfo = originalPathData.get(id);
+      const initialX = (pathInfo?.x ?? 0 - boundary[0]) * scale + totalOffsetX;
+      const initialY = (pathInfo?.y ?? 0 - boundary[2]) * scale + totalOffsetY;
+      const state = sharedPath.state[id];
+
+      const width = pathInfo?.width ?? 0;
+      const height = pathInfo?.height ?? 0;
+
+      if (
+        !(
+          pointerX >= initialX &&
+          pointerX <= initialX + width * scale &&
+          pointerY >= initialY &&
+          pointerY <= initialY + height * scale
+        )
+      ) {
+        if (state === CommonState.hover) {
+          serializedPathData.hoverIdList.delete(id);
+          sharedPath.state[id] = CommonState.normal;
+          this.updateCanvasByGeometryId(3, id);
+        }
+      }
+    }
+
+    const typeList = pieceInfo.typeList.slice().reverse();
+    const idList = pieceInfo.idList.slice().reverse();
+
+    for (let i = 0; i < idList.length; i++) {
+      const type = typeList[i];
+      const id = idList[i];
+
+      let sharedItem = null;
+      let serializedData = null;
+      let borderWidth = 0;
+      let sharedItemWidth = 0;
+      let sharedItemHeight = 0;
+      let x = 0;
+      let y = 0;
+
+      if (type === 0) {
+        sharedItem = sharedRect;
+        serializedData = serializedRectData;
+        borderWidth = sharedItem.lineWidth[id];
+        sharedItemWidth = sharedItem.width[id];
+        sharedItemHeight = sharedItem.height[id];
+        x = sharedItem.x[id];
+        y = sharedItem.y[id];
+      } else if (type === 1) {
+        sharedItem = sharedText;
+        serializedData = serializedTextData;
+        sharedItemWidth = sharedItem.width[id];
+        sharedItemHeight = sharedItem.height[id];
+        x = sharedItem.x[id];
+        y = sharedItem.y[id];
+      } else if (type === 2) {
+        const imageInfo = imageMap.get(sharedImage.imageIndex[id]);
+        sharedItem = sharedImage;
+        serializedData = serializedImageData;
+        sharedItemWidth = imageInfo.width;
+        sharedItemHeight = imageInfo.height;
+        x = sharedItem.x[id];
+        y = sharedItem.y[id];
+      } else if (type === 3) {
+        sharedItem = sharedPath;
+        serializedData = serializedPathData;
+        sharedItemWidth = originalPathData.get(id)?.width ?? 0;
+        sharedItemHeight = originalPathData.get(id)?.height ?? 0;
+        x = originalPathData.get(id)?.x ?? 0;
+        y = originalPathData.get(id)?.y ?? 0;
+      }
+
+      if (!serializedData?.hoverFunction?.[id]) {
         continue;
       }
 
-      const initialX =
-        (sharedRectData.x[id] - boundary[0] - sharedRectData.lineWidth[id] / 2) * scale +
-        totalOffsetX;
-      const initialY =
-        (sharedRectData.y[id] - boundary[2] - sharedRectData.lineWidth[id] / 2) * scale +
-        totalOffsetY;
-      const state = sharedRectData.state[id];
+      const initialX = (x - boundary[0] - borderWidth / 2) * scale + totalOffsetX;
+      const initialY = (y - boundary[2] - borderWidth / 2) * scale + totalOffsetY;
+
       if (
         pointerX >= initialX &&
-        pointerX <= initialX + (sharedRectData.width[id] + sharedRectData.lineWidth[id]) * scale &&
+        pointerX <= initialX + (sharedItemWidth + borderWidth) * scale &&
         pointerY >= initialY &&
-        pointerY <= initialY + (sharedRectData.height[id] + sharedRectData.lineWidth[id]) * scale
+        pointerY <= initialY + (sharedItemHeight + borderWidth) * scale
       ) {
+        const state = sharedItem.state?.[id];
         if (
-          state === RectState.hover ||
-          state === RectState.checked ||
-          serializedRectData.hoverIdList.has(id)
+          state === CommonState.hover ||
+          state === CommonState.checked ||
+          serializedData.hoverIdList?.has(id)
         ) {
           break;
         }
 
-        sharedRectData.state[id] = RectState.hover;
+        sharedItem.state[id] = CommonState.hover;
 
-        const rectProperty = serializedRectData.hoverFunction[id]?.(id);
+        const property = serializedData.hoverFunction[id]?.(id);
 
-        serializedRectData.hoverIdList.set(id, rectProperty);
+        serializedData.hoverIdList.set(id, property);
 
-        this.updateCanvasByGeometryId(id);
+        this.updateCanvasByGeometryId(type, id);
 
         break;
       }
@@ -429,42 +668,97 @@ export default class CanvasManager {
 
     const pieceIndex = pieceIndexX + pieceIndexY * sideNumber;
 
-    // rect
+    const pieceInfo = this.geometryManager.getCanvasArea(level, pieceIndex);
 
-    const rectIdList = this.geometryManager.getCanvasAreaIdList(level, pieceIndex);
     const serializedRectData = this.geometryManager.getSerializedRectData();
-    const sharedRectData = serializedRectData.shared;
+    const serializedTextData = this.geometryManager.getSerializedTextData();
+    const serializedImageData = this.geometryManager.getSerializedImageData();
+    const serializedPathData = this.geometryManager.getSerializedPathData();
 
-    for (let id of rectIdList.slice().reverse()) {
-      if (!serializedRectData.clickFunction[id]) {
+    // rect & image & path
+    const sharedRect = serializedRectData.shared;
+    const sharedText = serializedTextData.shared;
+    const sharedImage = serializedImageData.shared;
+    const sharedPath = serializedPathData.shared;
+
+    // origin
+    const originalPathData = this.geometryManager.getOriginalPathList();
+
+    // image map
+    const imageMap = this.geometryManager.getImageMap();
+
+    const typeList = pieceInfo.typeList.slice().reverse();
+    const idList = pieceInfo.idList.slice().reverse();
+
+    for (let i = 0; i < idList.length; i++) {
+      const type = typeList[i];
+      const id = idList[i];
+
+      let sharedItem = null;
+      let serializedData = null;
+      let borderWidth = 0;
+      let sharedItemWidth = 0;
+      let sharedItemHeight = 0;
+      let x = 0;
+      let y = 0;
+
+      if (type === 0) {
+        sharedItem = sharedRect;
+        serializedData = serializedRectData;
+        borderWidth = sharedItem.lineWidth[id];
+        sharedItemWidth = sharedItem.width[id];
+        sharedItemHeight = sharedItem.height[id];
+        x = sharedItem.x[id];
+        y = sharedItem.y[id];
+      } else if (type === 1) {
+        sharedItem = sharedText;
+        serializedData = serializedTextData;
+        sharedItemWidth = sharedItem.width[id];
+        sharedItemHeight = sharedItem.height[id];
+        x = sharedItem.x[id];
+        y = sharedItem.y[id];
+      } else if (type === 2) {
+        const imageInfo = imageMap.get(sharedImage.imageIndex[id]);
+        sharedItem = sharedImage;
+        serializedData = serializedImageData;
+        sharedItemWidth = imageInfo.width;
+        sharedItemHeight = imageInfo.height;
+        x = sharedItem.x[id];
+        y = sharedItem.y[id];
+      } else if (type === 3) {
+        sharedItem = sharedPath;
+        serializedData = serializedPathData;
+        sharedItemWidth = originalPathData.get(id)?.width ?? 0;
+        sharedItemHeight = originalPathData.get(id)?.height ?? 0;
+        x = originalPathData.get(id)?.x ?? 0;
+        y = originalPathData.get(id)?.y ?? 0;
+      }
+
+      if (!serializedData?.hoverFunction?.[id]) {
         continue;
       }
 
-      const initialX =
-        (sharedRectData.x[id] - boundary[0] - sharedRectData.lineWidth[id] / 2) * scale +
-        totalOffsetX;
-      const initialY =
-        (sharedRectData.y[id] - boundary[2] - sharedRectData.lineWidth[id] / 2) * scale +
-        totalOffsetY;
-      const state = sharedRectData.state[id];
+      const initialX = (x - boundary[0] - borderWidth / 2) * scale + totalOffsetX;
+      const initialY = (y - boundary[2] - borderWidth / 2) * scale + totalOffsetY;
+
       if (
         pointerX >= initialX &&
-        pointerX <= initialX + (sharedRectData.width[id] + sharedRectData.lineWidth[id]) * scale &&
+        pointerX <= initialX + (sharedItemWidth + borderWidth) * scale &&
         pointerY >= initialY &&
-        pointerY <= initialY + (sharedRectData.height[id] + sharedRectData.lineWidth[id]) * scale
+        pointerY <= initialY + (sharedItemHeight + borderWidth) * scale
       ) {
-        if (state === RectState.checked || serializedRectData.checkedIdList.has(id)) {
-          console.log(id);
+        const state = sharedItem.state?.[id];
+        if (state === CommonState.checked || serializedData.checkedIdList.has(id)) {
           break;
         }
 
-        sharedRectData.state[id] = RectState.checked;
+        sharedItem.state[id] = CommonState.checked;
 
-        const rectProperty = serializedRectData.clickFunction[id]?.(id);
+        const property = serializedData.clickFunction[id]?.(id);
 
-        serializedRectData.checkedIdList.set(id, rectProperty);
+        serializedData.checkedIdList.set(id, property);
 
-        this.updateCanvasByGeometryId(id);
+        this.updateCanvasByGeometryId(type, id);
 
         break;
       }
@@ -534,15 +828,16 @@ export default class CanvasManager {
         'wheel',
         (event: WheelEvent) => {
           if (!draggable) {
+            const perScale = 0.2;
             if (event.deltaY < 0) {
-              x = event.offsetX - (event.offsetX - x) * (1 + 0.1 / k);
-              y = event.offsetY - (event.offsetY - y) * (1 + 0.1 / k);
-              k += 0.1;
+              x = event.offsetX - (event.offsetX - x) * (1 + perScale / k);
+              y = event.offsetY - (event.offsetY - y) * (1 + perScale / k);
+              k += perScale;
             } else {
               if (k > 0.5) {
-                x = event.offsetX - (event.offsetX - x) * (1 - 0.1 / k);
-                y = event.offsetY - (event.offsetY - y) * (1 - 0.1 / k);
-                k -= 0.1;
+                x = event.offsetX - (event.offsetX - x) * (1 - perScale / k);
+                y = event.offsetY - (event.offsetY - y) * (1 - perScale / k);
+                k -= perScale;
               }
             }
             callback({ k, x, y });
