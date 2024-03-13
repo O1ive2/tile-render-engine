@@ -17,7 +17,7 @@ export enum CommonState {
 }
 
 export type RectProperty = {
-  id?: number;
+  id?: number|string;
   x: number;
   y: number;
   width: number;
@@ -29,6 +29,7 @@ export type RectProperty = {
   lineDash?: Array<number>;
   alpha?: number;
   hover?: Function;
+  hoverOut?: Function;
   click?: Function;
   state?: CommonState;
   zIndex?: number;
@@ -36,7 +37,7 @@ export type RectProperty = {
 };
 
 export type TextProperty = {
-  id?: number;
+  id?: number|string;
   x: number;
   y: number;
   content: string;
@@ -54,7 +55,7 @@ export type TextProperty = {
 };
 
 export type ImageProperty = {
-  id?: number;
+  id?: number|string;
   x: number;
   y: number;
   width?: number;
@@ -65,12 +66,13 @@ export type ImageProperty = {
   zIndex?: number;
   propertyType?: 2;
   hover?: Function;
+  hoverOut?: Function;
   click?: Function;
   state?: CommonState;
 };
 
 export type PathProperty = {
-  id?: number;
+  id?: number|string;
   fromX: number;
   fromY: number;
   toX: number;
@@ -83,6 +85,7 @@ export type PathProperty = {
   zIndex?: number;
   propertyType?: 3;
   hover?: Function;
+  hoverOut?: Function;
   click?: Function;
   state?: CommonState;
   x?: number;

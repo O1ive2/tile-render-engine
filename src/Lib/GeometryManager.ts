@@ -6,7 +6,7 @@ import {
   RectType,
   TextProperty,
 } from '../Type/Geometry.type';
-
+import CanvasManager from './CanvasManager';
 export default class GeometryManager {
   private static mgr: GeometryManager | null = null;
 
@@ -33,80 +33,65 @@ export default class GeometryManager {
     text: new Map(),
   };
 
+  private autoIdMap: Map<number | string, { id: number; type: number }> = new Map();
   private nameIdMap: Map<string, number> = new Map();
   private imageMap: Map<number, any> = new Map();
 
+  private highlightList = {
+    rect: new Map(),
+    text: new Map(),
+    image: new Map(),
+    path: new Map(),
+  };
+
   private serializedSharedData: any = {
     rect: {
-      shared: {
-        id: null,
-        x: null,
-        y: null,
-        width: null,
-        height: null,
-        type: null,
-        alpha: null,
-        zIndex: null,
-        propertyType: null,
-        state: null,
-        lineWidth: null,
-        other: null,
-        style: null,
-      },
-      hoverFunction: [],
-      clickFunction: [],
-      hoverIdList: new Map(),
-      checkedIdList: new Map(),
+      id: null,
+      x: null,
+      y: null,
+      width: null,
+      height: null,
+      type: null,
+      alpha: null,
+      zIndex: null,
+      propertyType: null,
+      lineWidth: null,
+      other: null,
+      style: null,
     },
     text: {
-      shared: {
-        id: null,
-        x: null,
-        y: null,
-        width: null,
-        height: null,
-        fontSize: null,
-        alpha: null,
-        zIndex: null,
-        propertyType: null,
-        other: null,
-      },
+      id: null,
+      x: null,
+      y: null,
+      width: null,
+      height: null,
+      fontSize: null,
+      alpha: null,
+      zIndex: null,
+      propertyType: null,
+      other: null,
     },
     image: {
-      shared: {
-        id: null,
-        x: null,
-        y: null,
-        state: null,
-        imageIndex: null,
-        alpha: null,
-        zIndex: null,
-        propertyType: null,
-      },
-      hoverFunction: [],
-      clickFunction: [],
-      hoverIdList: new Map(),
-      checkedIdList: new Map(),
+      id: null,
+      x: null,
+      y: null,
+      imageIndex: null,
+      alpha: null,
+      zIndex: null,
+      propertyType: null,
     },
     path: {
-      shared: {
-        id: null,
-        fromX: null,
-        fromY: null,
-        toX: null,
-        toY: null,
-        alpha: null,
-        zIndex: null,
-        propertyType: null,
-        state: null,
-        lineWidth: null,
-        lineCap: null,
-        other: null,
-      },
-      hoverFunction: [],
-      clickFunction: [],
-      hoverIdList: new Map(),
-      checkedIdList: new Map(),
+      id: null,
+      fromX: null,
+      fromY: null,
+      toX: null,
+      toY: null,
+      alpha: null,
+      zIndex: null,
+      propertyType: null,
+      lineWidth: null,
+      lineCap: null,
+      other: null,
     },
   };
 
@@ -371,7 +356,7 @@ export default class GeometryManager {
       maxY = Math.max(maxY, path.fromY, path.toY);
     }
 
-    if (rectList.size === 0 && textList.size === 0 && imageList.size === 0) {
+    if (rectList.size === 0 && textList.size === 0 && imageList.size === 0 && pathList.size === 0) {
       minX = 0;
       minY = 0;
     }
@@ -401,6 +386,9 @@ export default class GeometryManager {
   }
 
   public collectRect(rect: RectProperty): void {
+    if (rect.id) {
+      this.autoIdMap.set(rect.id, { id: this.drawingDataModel.rect.size, type: 0 });
+    }
     rect.id = this.drawingDataModel.rect.size;
     if (rect.width < 0) {
       rect.x = rect.x + rect.width;
@@ -416,6 +404,9 @@ export default class GeometryManager {
   }
 
   public collectText(text: TextProperty): void {
+    if (text.id) {
+      this.autoIdMap.set(text.id, { id: this.drawingDataModel.text.size, type: 1 });
+    }
     text.id = this.drawingDataModel.text.size;
     text.zIndex = this.currentZIndex++;
     text.fontSize = text.fontSize || 10;
@@ -427,6 +418,9 @@ export default class GeometryManager {
   }
 
   public collectImage(img: ImageProperty): void {
+    if (img.id) {
+      this.autoIdMap.set(img.id, { id: this.drawingDataModel.image.size, type: 2 });
+    }
     img.id = this.drawingDataModel.image.size;
     img.zIndex = this.currentZIndex++;
     img.imageIndex = this.nameIdMap.get(img.imageId);
@@ -437,6 +431,9 @@ export default class GeometryManager {
   }
 
   public collectPath(path: PathProperty): void {
+    if (path.id) {
+      this.autoIdMap.set(path.id, { id: this.drawingDataModel.path.size, type: 3 });
+    }
     path.id = this.drawingDataModel.path.size;
     path.propertyType = 3;
     path.zIndex = this.currentZIndex++;
@@ -445,22 +442,30 @@ export default class GeometryManager {
     const minY = Math.min(path.fromY, path.toY);
     const maxX = Math.max(path.fromX, path.toX);
     const maxY = Math.max(path.fromY, path.toY);
-    const borderWidth = (path.lineWidth || 1) / 2;
+    const borderWidth = Math.ceil((path.lineWidth || 1) / 2);
 
     if (maxX - minX === 0) {
       path.x = minX - borderWidth;
       path.width = borderWidth * 2;
     } else {
-      path.x = minX;
-      path.width = maxX - minX;
+      let addtionalWidth = 0;
+      if (path.lineCap === 1 || path.lineCap === 2) {
+        addtionalWidth = borderWidth * 2;
+      }
+      path.x = minX - addtionalWidth;
+      path.width = maxX - minX + addtionalWidth * 2;
     }
 
     if (maxY - minY === 0) {
       path.y = minY - borderWidth;
       path.height = borderWidth * 2;
     } else {
-      path.y = minY;
-      path.height = maxY - minY;
+      let addtionalWidth = 0;
+      if (path.lineCap === 1 || path.lineCap === 2) {
+        addtionalWidth = borderWidth * 2;
+      }
+      path.y = minY - addtionalWidth;
+      path.height = maxY - minY + addtionalWidth * 2;
     }
 
     this.drawingDataModel.path.set(path.id, path);
@@ -532,9 +537,19 @@ export default class GeometryManager {
     return this.drawingDataModel.path;
   }
 
+  public getOriginalDataByType(type: number) {
+    const originalList: Array<any> = [
+      this.drawingDataModel.rect,
+      this.drawingDataModel.text,
+      this.drawingDataModel.image,
+      this.drawingDataModel.path,
+    ];
+    return originalList[type];
+  }
+
   public serializeRect(): void {
     const rectNumber = this.drawingDataModel.rect.size;
-    const sharedRect = this.serializedSharedData.rect.shared;
+    const sharedRect = this.serializedSharedData.rect;
 
     sharedRect.id = new Uint32Array(new SharedArrayBuffer(rectNumber * 4));
     sharedRect.x = new Float32Array(new SharedArrayBuffer(rectNumber * 4));
@@ -542,13 +557,12 @@ export default class GeometryManager {
     sharedRect.width = new Float32Array(new SharedArrayBuffer(rectNumber * 4));
     sharedRect.height = new Float32Array(new SharedArrayBuffer(rectNumber * 4));
     sharedRect.type = new Uint8Array(new SharedArrayBuffer(rectNumber));
-    sharedRect.state = new Uint8Array(new SharedArrayBuffer(rectNumber));
     sharedRect.alpha = new Float32Array(new SharedArrayBuffer(rectNumber * 4));
     sharedRect.lineWidth = new Uint16Array(new SharedArrayBuffer(rectNumber * 2));
     sharedRect.zIndex = new Uint32Array(new SharedArrayBuffer(rectNumber * 4));
     sharedRect.propertyType = new Uint8Array(new SharedArrayBuffer(rectNumber));
 
-    // sharedRect.style = new Uint8Array(new SharedArrayBuffer(rectNumber * 256));
+    // sharedRect.style = new Uint8Array((rectNumber * 256));
 
     const textEncoder = new TextEncoder();
     const encodedData = textEncoder.encode(
@@ -559,23 +573,10 @@ export default class GeometryManager {
           sharedRect.width[i] = item.width;
           sharedRect.height[i] = item.height;
           sharedRect.type[i] = item.type;
-          sharedRect.state[i] = item.state;
           sharedRect.alpha[i] = item.alpha;
           sharedRect.lineWidth[i] = item.lineWidth;
           sharedRect.zIndex[i] = item.zIndex;
           sharedRect.propertyType[i] = item.propertyType;
-
-          this.serializedSharedData.rect.hoverFunction[i] = item.hover;
-          this.serializedSharedData.rect.clickFunction[i] = item.click;
-
-          // const encodedData = textEncoder.encode(
-          //   JSON.stringify({
-          //     fillStyle: item.fillStyle,
-          //     strokeStyle: item.strokeStyle,
-          //   }),
-          // );
-          // sharedRect.style[i * 256] = encodedData.length;
-          // sharedRect.style.set(encodedData, i * 256 + 1);
 
           return {
             lineDash: item.lineDash,
@@ -585,13 +586,13 @@ export default class GeometryManager {
         }),
       ),
     );
-    sharedRect.other = new Uint8Array(new SharedArrayBuffer(encodedData.length));
+    sharedRect.other = new Uint8Array(encodedData.length);
     sharedRect.other.set(encodedData);
   }
 
   public serializeText(): void {
     const textNumber = this.drawingDataModel.text.size;
-    const sharedText = this.serializedSharedData.text.shared;
+    const sharedText = this.serializedSharedData.text;
 
     sharedText.id = new Uint32Array(new SharedArrayBuffer(textNumber * 4));
     sharedText.x = new Float32Array(new SharedArrayBuffer(textNumber * 4));
@@ -602,7 +603,7 @@ export default class GeometryManager {
     sharedText.alpha = new Float32Array(new SharedArrayBuffer(textNumber * 4));
     sharedText.zIndex = new Uint32Array(new SharedArrayBuffer(textNumber * 4));
     sharedText.propertyType = new Uint8Array(new SharedArrayBuffer(textNumber));
-    // sharedRect.style = new Uint8Array(new SharedArrayBuffer(rectNumber * 256));
+    // sharedRect.style = new Uint8Array((rectNumber * 256));
 
     const textEncoder = new TextEncoder();
     const encodedData = textEncoder.encode(
@@ -636,19 +637,18 @@ export default class GeometryManager {
         }),
       ),
     );
-    sharedText.other = new Uint8Array(new SharedArrayBuffer(encodedData.length));
+    sharedText.other = new Uint8Array(encodedData.length);
     sharedText.other.set(encodedData);
   }
 
   public serializeImage(): void {
     const imageNumber = this.drawingDataModel.image.size;
-    const sharedImage = this.serializedSharedData.image.shared;
+    const sharedImage = this.serializedSharedData.image;
 
     sharedImage.id = new Uint32Array(new SharedArrayBuffer(imageNumber * 4));
     sharedImage.x = new Float32Array(new SharedArrayBuffer(imageNumber * 4));
     sharedImage.y = new Float32Array(new SharedArrayBuffer(imageNumber * 4));
     sharedImage.imageIndex = new Uint8Array(new SharedArrayBuffer(imageNumber));
-    sharedImage.state = new Uint8Array(new SharedArrayBuffer(imageNumber));
     sharedImage.alpha = new Float32Array(new SharedArrayBuffer(imageNumber * 4));
     sharedImage.zIndex = new Uint32Array(new SharedArrayBuffer(imageNumber * 4));
     sharedImage.propertyType = new Uint8Array(new SharedArrayBuffer(imageNumber));
@@ -657,26 +657,21 @@ export default class GeometryManager {
       sharedImage.x[i] = item.x;
       sharedImage.y[i] = item.y;
       sharedImage.imageIndex[i] = item.imageIndex;
-      sharedImage.state[i] = item.state;
       sharedImage.alpha[i] = item.alpha;
       sharedImage.zIndex[i] = item.zIndex;
       sharedImage.propertyType[i] = item.propertyType;
-
-      this.serializedSharedData.image.hoverFunction[i] = item.hover;
-      this.serializedSharedData.image.clickFunction[i] = item.click;
     });
   }
 
   public serializePath(): void {
     const pathNumber = this.drawingDataModel.path.size;
-    const sharedPath = this.serializedSharedData.path.shared;
+    const sharedPath = this.serializedSharedData.path;
 
     sharedPath.id = new Uint32Array(new SharedArrayBuffer(pathNumber * 4));
     sharedPath.fromX = new Float32Array(new SharedArrayBuffer(pathNumber * 4));
     sharedPath.fromY = new Float32Array(new SharedArrayBuffer(pathNumber * 4));
     sharedPath.toX = new Float32Array(new SharedArrayBuffer(pathNumber * 4));
     sharedPath.toY = new Float32Array(new SharedArrayBuffer(pathNumber * 4));
-    sharedPath.state = new Uint8Array(new SharedArrayBuffer(pathNumber));
     sharedPath.alpha = new Float32Array(new SharedArrayBuffer(pathNumber * 4));
     sharedPath.lineWidth = new Uint8Array(new SharedArrayBuffer(pathNumber));
     sharedPath.zIndex = new Uint32Array(new SharedArrayBuffer(pathNumber * 4));
@@ -691,15 +686,11 @@ export default class GeometryManager {
           sharedPath.fromY[i] = item.fromY;
           sharedPath.toX[i] = item.toX;
           sharedPath.toY[i] = item.toY;
-          sharedPath.state[i] = item.state;
           sharedPath.alpha[i] = item.alpha;
           sharedPath.lineWidth[i] = item.lineWidth;
           sharedPath.zIndex[i] = item.zIndex;
           sharedPath.propertyType[i] = item.propertyType;
           sharedPath.lineCap[i] = item.lineCap;
-
-          this.serializedSharedData.path.hoverFunction[i] = item.hover;
-          this.serializedSharedData.path.clickFunction[i] = item.click;
 
           return {
             lineDash: item.lineDash,
@@ -708,7 +699,7 @@ export default class GeometryManager {
         }),
       ),
     );
-    sharedPath.other = new Uint8Array(new SharedArrayBuffer(encodedData.length));
+    sharedPath.other = new Uint8Array(encodedData.length);
     sharedPath.other.set(encodedData);
   }
 
@@ -726,6 +717,28 @@ export default class GeometryManager {
 
   public getSerializedPathData(): any {
     return this.serializedSharedData.path;
+  }
+
+  public getSerializedData(): any {
+    return this.serializedSharedData;
+  }
+
+  public getHighlightList(): any {
+    return this.highlightList;
+  }
+
+  public getHighlightListByType(type: number): any {
+    const highlightList: Array<any> = [
+      this.highlightList.rect,
+      this.highlightList.text,
+      this.highlightList.image,
+      this.highlightList.path,
+    ];
+    return highlightList[type];
+  }
+
+  public getAutoIdMap(): Map<number | string, { id: number; type: number }> {
+    return this.autoIdMap;
   }
 
   public getImageMap(): any {
@@ -758,13 +771,12 @@ export default class GeometryManager {
     let borderWidth = 0;
     let width = 0;
     let height = 0;
-    let rectType = 0;
     let sharedItem = null;
 
-    const sharedRect = this.serializedSharedData.rect.shared;
-    const sharedText = this.serializedSharedData.text.shared;
-    const sharedImage = this.serializedSharedData.image.shared;
-    const sharedPath = this.serializedSharedData.path.shared;
+    const sharedRect = this.serializedSharedData.rect;
+    const sharedText = this.serializedSharedData.text;
+    const sharedImage = this.serializedSharedData.image;
+    const sharedPath = this.serializedSharedData.path;
 
     const originalPathData = this.getOriginalPathList();
 
@@ -780,7 +792,6 @@ export default class GeometryManager {
           : 0;
       width = sharedItem.width[currentId];
       height = sharedItem.height[currentId];
-      rectType = sharedItem.type[currentId];
       x = sharedItem.x[currentId];
       y = sharedItem.y[currentId];
     } else if (geometryType === 1) {
@@ -1003,7 +1014,7 @@ export default class GeometryManager {
     });
   }
 
-  public flush(): void {
+  public async flush(canvasManager: CanvasManager): Promise<void> {
     // rect serialize
     this.serializeRect();
 
@@ -1021,6 +1032,8 @@ export default class GeometryManager {
     this.setAreaByLevel(1);
     this.setAreaByLevel(2);
     this.setAreaByLevel(3);
+
+    await Promise.all(canvasManager.getSubCanvasList().map((subCanvas) => subCanvas.init()));
   }
 
   public static from(): GeometryManager {

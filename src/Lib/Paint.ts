@@ -10,20 +10,32 @@ export default class Paint {
     this.canvasManager = canvasManager;
   }
 
-  public drawRect(rectProperty: RectProperty) {
+  public drawRect(rectProperty: RectProperty): void {
     this.geometryManager.collectRect(rectProperty);
   }
 
-  public drawText(textProperty: TextProperty) {
+  public drawText(textProperty: TextProperty): void {
     this.geometryManager.collectText(textProperty);
   }
 
-  public drawImage(imageProperty: ImageProperty) {
+  public drawImage(imageProperty: ImageProperty): void {
     this.geometryManager.collectImage(imageProperty);
   }
 
-  public drawPath(pathProperty: PathProperty) {
+  public drawPath(pathProperty: PathProperty): void {
     this.geometryManager.collectPath(pathProperty);
+  }
+
+  public highlight(idList: Array<number | string>, property: any): void {
+    for (let businessId of idList) {
+      const autoIdMap = this.geometryManager.getAutoIdMap();
+      const mapInfo = autoIdMap.get(businessId);
+      if (mapInfo) {
+        const { id, type } = mapInfo;
+        this.geometryManager.getHighlightListByType(type).set(id, property);
+        this.canvasManager.updateCanvasByGeometryId(type, id);
+      }
+    }
   }
 
   public loadImage(img: string, info: any): Promise<void> {
@@ -40,8 +52,9 @@ export default class Paint {
   }
 
   public flush() {
-    this.geometryManager.flush();
-    this.canvasManager.flush();
+    this.geometryManager.flush(this.canvasManager).then(() => {
+      this.canvasManager.flush();
+    });
   }
 
   public static from(canvasManager: CanvasManager): Paint {

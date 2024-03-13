@@ -1,46 +1,82 @@
 import GeometryManager from './GeometryManager';
-
 export default class SubCanvas {
   private isBusy = false;
-  private blob_str: Blob | null = null;
-  private worker: Worker | null = null;
+  private isInitialized = false;
+  private blob_str: Blob;
+  private worker: Worker;
   private geometryManager: GeometryManager = GeometryManager.from();
   private characterHash: string = '';
 
-  constructor() {}
+  constructor() {
+    this.blob_str = new Blob(
+      [
+        `
+        const render = ${this.retRender()}
 
-  public retDrawRect(): Function {
+        let shared = null;
+        let imageMap = null;
+
+        self.onmessage = (e) => {
+          if(e.data.type === 'init') {
+            shared = e.data.shared;
+            imageMap = e.data.imageMap;
+
+            self.postMessage({
+              type: 'init'
+            });
+          }else if(e.data.type === 'render') {
+            const width = e.data.width;
+            const height = e.data.height;
+            const offsetX = e.data.offsetX;
+            const offsetY = e.data.offsetY;
+            const idList = e.data.idList;
+            const typeList = e.data.typeList;
+            const highlightList = e.data.highlightList;
+            const realPieceToRenderingScale = e.data.realPieceToRenderingScale;
+  
+            const canvas = render(width,height,shared,idList,typeList,highlightList,imageMap,offsetX,offsetY,realPieceToRenderingScale);
+
+            self.postMessage({
+              type: "render",
+              img: canvas?.transferToImageBitmap()
+            });
+          }
+          
+        };
+        `,
+      ],
+      { type: 'text/javascript' },
+    );
+
+    this.worker = new Worker(URL.createObjectURL(this.blob_str));
+  }
+
+  public retRender = () => {
     return (
-      ctx: any,
+      width: number,
+      height: number,
       shared: any,
       idList: any,
       typeList: any,
-      hoverList: any,
-      checkedList: any,
+      highlightList: any,
       imageMap: any,
       offsetX: number,
       offsetY: number,
       realPieceToRenderingScale: number,
-    ): void => {
+    ): OffscreenCanvas | void => {
       // const now = Date.now();
 
+      const canvas = new OffscreenCanvas(width, height);
+      const ctx = <OffscreenCanvasRenderingContext2D>canvas.getContext('2d');
+
       if (idList.length === 0) {
-        return;
+        return canvas;
       }
 
       const sharedRect = shared.rect;
-      const rectHoverList = hoverList.rect;
-      const rectCheckedList = checkedList.rect;
-
       const sharedText = shared.text;
-
       const sharedImage = shared.image;
-      const imageHoverList = hoverList.image;
-      const imageCheckedList = checkedList.image;
-
       const sharedPath = shared.path;
-      const pathHoverList = hoverList.path;
-      const pathCheckedList = checkedList.path;
 
       const textDecoder = new TextDecoder();
 
@@ -60,6 +96,8 @@ export default class SubCanvas {
       // )},${Math.floor(Math.random() * 256)})`;
       // ctx.fillRect(0, 0, 10000, 10000);
 
+      ctx.imageSmoothingEnabled = false;
+
       ctx.save();
 
       ctx.scale(realPieceToRenderingScale, realPieceToRenderingScale);
@@ -78,7 +116,6 @@ export default class SubCanvas {
           const lineWidth = sharedRect.lineWidth[id] || 1;
           const type = sharedRect.type[id] ?? 0;
           const alpha = sharedRect.alpha[id] ?? 1;
-          const state = sharedRect.state[id] || 0;
 
           // const styleIndex = id * 256;
           // const encodedDataLength = sharedRect.style[styleIndex];
@@ -101,19 +138,14 @@ export default class SubCanvas {
           ctx.beginPath();
           ctx.rect(x, y, width, height);
 
-          // hover
-          if (state === 1) {
+          if (highlightList.rect.has(id)) {
             // todo more property support
-            const hoverProperty = rectHoverList.get(id);
-            ctx.globalAlpha = hoverProperty.alpha || ctx.globalAlpha;
-            ctx.strokeStyle = hoverProperty.strokeStyle || ctx.strokeStyle;
-            ctx.fillStyle = hoverProperty.fillStyle || ctx.fillStyle;
-          } else if (state === 2) {
-            // todo more property support
-            const checkedProperty = rectCheckedList.get(id);
-            ctx.globalAlpha = checkedProperty.alpha || ctx.globalAlpha;
-            ctx.strokeStyle = checkedProperty.strokeStyle || ctx.strokeStyle;
-            ctx.fillStyle = checkedProperty.fillStyle || ctx.fillStyle;
+            const highlightProperty = highlightList.rect.get(id);
+            if (highlightProperty) {
+              ctx.globalAlpha = highlightProperty.alpha || ctx.globalAlpha;
+              ctx.strokeStyle = highlightProperty.strokeStyle || ctx.strokeStyle;
+              ctx.fillStyle = highlightProperty.fillStyle || ctx.fillStyle;
+            }
           }
 
           if (type === 0) {
@@ -129,8 +161,6 @@ export default class SubCanvas {
         } else if (typeList[i] === 1) {
           const x = sharedText.x[id];
           const y = sharedText.y[id];
-          const width = sharedText.width[id];
-          const height = sharedText.height[id];
           const fontSize = sharedText.fontSize[id];
           const content = textOtherList[id].content || '';
           const fillStyle = textOtherList[id].fillStyle || '';
@@ -152,7 +182,6 @@ export default class SubCanvas {
           const x = sharedImage.x[id];
           const y = sharedImage.y[id];
           const alpha = sharedImage.alpha[id] ?? 1;
-          const state = sharedImage.state[id] || 0;
 
           ctx.save();
 
@@ -160,16 +189,19 @@ export default class SubCanvas {
 
           let renderingImg = img;
 
-          if (state === 1) {
+          if (highlightList.image.has(id)) {
             // todo more property support
-            const hoverProperty = imageHoverList.get(id);
-            ctx.globalAlpha = hoverProperty.alpha || ctx.globalAlpha;
-            renderingImg = hoverImg;
-          } else if (state === 2) {
-            // todo more property support
-            const checkedProperty = imageCheckedList.get(id);
-            ctx.globalAlpha = checkedProperty.alpha || ctx.globalAlpha;
-            renderingImg = checkImg;
+            const highlightProperty = highlightList.image.get(id);
+            if (highlightProperty) {
+              ctx.globalAlpha = highlightProperty.alpha || ctx.globalAlpha;
+              if (highlightProperty.state === 'hover') {
+                renderingImg = hoverImg;
+              } else if (highlightProperty.state === 'check') {
+                renderingImg = checkImg;
+              } else {
+                renderingImg = img;
+              }
+            }
           }
 
           ctx.drawImage(renderingImg, x, y, width, height);
@@ -185,32 +217,30 @@ export default class SubCanvas {
           const lineDash = pathOtherList[id].lineDash || [];
           const strokeStyle = pathOtherList[id].strokeStyle || '';
           const alpha = sharedPath.alpha[id] ?? 1;
-          const state = sharedPath.state[id] || 0;
 
           ctx.save();
+          ctx.beginPath();
 
           ctx.globalAlpha = alpha;
           ctx.setLineDash(lineDash);
           ctx.strokeStyle = strokeStyle || '';
           ctx.lineWidth = lineWidth;
-          ctx.lineCap = globalLineCaps[lineCap];
+          ctx.lineCap = <CanvasLineCap>globalLineCaps[lineCap];
 
-          // hover
-          if (state === 1) {
+          if (highlightList.path.has(id)) {
             // todo more property support
-            const hoverProperty = pathHoverList.get(id);
-            ctx.globalAlpha = hoverProperty.alpha || ctx.globalAlpha;
-            ctx.strokeStyle = hoverProperty.strokeStyle || ctx.strokeStyle;
-          } else if (state === 2) {
-            // todo more property support
-            const checkedProperty = pathCheckedList.get(id);
-            ctx.globalAlpha = checkedProperty.alpha || ctx.globalAlpha;
-            ctx.strokeStyle = checkedProperty.strokeStyle || ctx.strokeStyle;
+            const highlightProperty = highlightList.path.get(id);
+            if (highlightProperty) {
+              ctx.globalAlpha = highlightProperty.alpha || ctx.globalAlpha;
+              ctx.strokeStyle = highlightProperty.strokeStyle || ctx.strokeStyle;
+              ctx.setLineDash(highlightProperty.lineDash || lineDash);
+            }
           }
 
           ctx.moveTo(fromX, fromY);
           ctx.lineTo(toX, toY);
           ctx.stroke();
+          ctx.closePath();
 
           ctx.restore();
         }
@@ -218,14 +248,34 @@ export default class SubCanvas {
 
       ctx.restore();
 
+      return canvas;
+
       // console.log(Date.now() - now + 'ms');
 
       // console.log('------------');
     };
+  };
+
+  public init(): Promise<void> {
+    return new Promise(async (resolve, reject) => {
+      this.worker.onmessage = (e) => {
+        if (e.data.type === 'init') {
+          this.isInitialized = true;
+          resolve();
+        }
+      };
+
+      this.worker.postMessage({
+        type: 'init',
+        shared: this.geometryManager.getSerializedData(),
+        imageMap: this.geometryManager.getImageMap(),
+      });
+    });
   }
 
-  public run(
-    offscreenCanvas: OffscreenCanvas,
+  public render(
+    width: number,
+    height: number,
     offsetX: number,
     offsetY: number,
     level: number,
@@ -233,108 +283,39 @@ export default class SubCanvas {
     realPieceToRenderingScale: number,
   ): Promise<ImageBitmap | null> {
     return new Promise(async (resolve, reject) => {
-      const testStr = Math.random().toString();
-
       this.isBusy = true;
 
-      this.blob_str = new Blob(
-        [
-          `
-          const drawRect = ${this.retDrawRect()}
-
-          self.onmessage = (e) => {
-            const canvas = e.data.canvas;
-            const offsetX = e.data.offsetX;
-            const offsetY = e.data.offsetY;
-
-            const shared = e.data.shared;
-            const idList = e.data.idList;
-            const typeList = e.data.typeList;
-            const hoverList = e.data.hoverList;
-            const checkedList = e.data.checkedList;
-            const imageMap = e.data.imageMap;
-
-            const realPieceToRenderingScale = e.data.realPieceToRenderingScale;
-            const ctx = canvas.getContext('2d');
-
-            drawRect(ctx,e.data.shared,idList,typeList,hoverList,checkedList,imageMap,offsetX,offsetY,realPieceToRenderingScale);
-
-            const img = canvas.transferToImageBitmap();
-
-            self.postMessage(img);
-          };
-          `,
-        ],
-        { type: 'text/javascript' },
-      );
-      this.worker = new Worker(URL.createObjectURL(this.blob_str));
-
-      this.worker.addEventListener('message', (msg) => {
-        this.isBusy = false;
-        this.worker?.terminate();
-        this.setCharacter('');
-        resolve(msg.data);
-      });
-      console.time(testStr);
-
-      // rect
-      const serializedRectData = this.geometryManager.getSerializedRectData();
-
-      // text
-      const serializedTextData = this.geometryManager.getSerializedTextData();
-
-      // image
-      const serializedImageData = this.geometryManager.getSerializedImageData();
-
-      // path
-      const serializedPathData = this.geometryManager.getSerializedPathData();
-
-      // image map
-      const imageMap = this.geometryManager.getImageMap();
-
-      // const passList: any = [];
-
-      // imageMap.forEach((value: any) => {
-      //   passList.push(value.img);
-      //   passList.push(value.hoverImg);
-      //   passList.push(value.checkImg);
-      // });
+      this.worker.onmessage = (e) => {
+        if (e.data.type === 'render') {
+          this.isBusy = false;
+          this.setCharacter('');
+          resolve(e.data.img);
+        }
+      };
 
       this.worker.postMessage(
         {
-          canvas: offscreenCanvas,
+          type: 'render',
+          width,
+          height,
           realPieceToRenderingScale,
           offsetX,
           offsetY,
-          shared: {
-            rect: serializedRectData.shared,
-            text: serializedTextData.shared,
-            image: serializedImageData.shared,
-            path: serializedPathData.shared,
-          },
           idList: this.geometryManager.getCanvasArea(level, pieceIndex).idList,
           typeList: this.geometryManager.getCanvasArea(level, pieceIndex).typeList,
-          hoverList: {
-            rect: serializedRectData.hoverIdList,
-            image: serializedImageData.hoverIdList,
-            path: serializedPathData.hoverIdList,
-          },
-          checkedList: {
-            rect: serializedRectData.checkedIdList,
-            image: serializedImageData.checkedIdList,
-            path: serializedPathData.checkedIdList,
-          },
-          imageMap: imageMap,
+          highlightList: this.geometryManager.getHighlightList(),
         },
-        [offscreenCanvas],
+        [],
       );
-
-      console.timeEnd(testStr);
     });
   }
 
   public getIsBusy(): boolean {
     return this.isBusy;
+  }
+
+  public getIsInitialized(): boolean {
+    return this.isInitialized;
   }
 
   public setCharacter(str: string): string {

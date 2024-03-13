@@ -1,5 +1,5 @@
 import throttle from 'lodash/throttle';
-import { CommonState, PathProperty, RectProperty, TextProperty } from '../Type/Geometry.type';
+import { ImageProperty, PathProperty, RectProperty, TextProperty } from '../Type/Geometry.type';
 import { maxThreads } from '../config';
 import GeometryManager from './GeometryManager';
 import Paint from './Paint';
@@ -47,17 +47,27 @@ export default class CanvasManager {
 
   private geometryManager: GeometryManager = GeometryManager.from();
 
+  private hoverList: Map<string, { id: number; type: number }> = new Map();
+
   constructor(canvas: HTMLCanvasElement) {
     this.mainCanvas = canvas;
     this.mainCtx = <CanvasRenderingContext2D>canvas.getContext('2d');
     this.subCanvasList = Array.from({ length: maxThreads }, () => new SubCanvas());
     this.on(
       'zoom',
-      (transform: any) => {
-        this.opLock.hover = true;
-        this.opLock.click = true;
-        this.updateTransform(transform);
-      },
+      throttle(
+        (transform: any) => {
+          this.opLock.hover = true;
+          this.opLock.click = true;
+          this.updateTransform(transform);
+          this.render(true);
+        },
+        0,
+        {
+          leading: true,
+          trailing: false,
+        },
+      ),
       () => {
         setTimeout(() => {
           this.opLock.hover = false;
@@ -91,13 +101,15 @@ export default class CanvasManager {
     this.render();
   }
 
+  public getSubCanvasList(): Array<SubCanvas> {
+    return this.subCanvasList;
+  }
+
   public updateCanvasByGeometryId(geometryType: number, id: number): void {
     const boundary = this.geometryManager.getBoundary();
     const imageMap = this.geometryManager.getImageMap();
 
-    let sharedItem = null;
-    let serializedData = null;
-    let originalData = null;
+    // let sharedItem = null;
     let borderWidth = 0;
     let width = 0;
     let height = 0;
@@ -105,40 +117,38 @@ export default class CanvasManager {
     let x = 0;
     let y = 0;
 
+    const originalRectData = this.geometryManager.getOriginalRectList();
+    const originalTextData = this.geometryManager.getOriginalTextList();
+    const originalImageData = this.geometryManager.getOriginalImageList();
+    const originalPathData = this.geometryManager.getOriginalPathList();
+
+    const highlightList = this.geometryManager.getHighlightList();
+
     if (geometryType === 0) {
-      originalData = this.geometryManager.getOriginalRectList();
-      serializedData = this.geometryManager.getSerializedRectData();
-      sharedItem = serializedData.shared;
-      borderWidth = sharedItem.lineWidth[id];
-      width = sharedItem.width[id];
-      height = sharedItem.height[id];
-      x = sharedItem.x[id];
-      y = sharedItem.y[id];
+      const rectItem = <RectProperty>originalRectData.get(id);
+      x = rectItem.x;
+      y = rectItem.y;
+      width = rectItem.width;
+      height = rectItem.height;
+      borderWidth = rectItem.lineWidth ?? 0;
     } else if (geometryType === 1) {
-      originalData = this.geometryManager.getOriginalTextList();
-      serializedData = this.geometryManager.getSerializedTextData();
-      sharedItem = serializedData.shared;
-      width = sharedItem.width[id];
-      height = sharedItem.height[id];
-      x = sharedItem.x[id];
-      y = sharedItem.y[id];
+      const texItem = <TextProperty>originalTextData.get(id);
+      x = texItem.x;
+      y = texItem.y;
+      width = <number>texItem.width;
+      height = <number>texItem.height;
     } else if (geometryType === 2) {
-      originalData = this.geometryManager.getOriginalImageList();
-      serializedData = this.geometryManager.getSerializedImageData();
-      sharedItem = serializedData.shared;
-      const imageInfo = imageMap.get(sharedItem.imageIndex[id]);
-      width = imageInfo.width;
-      height = imageInfo.height;
-      x = sharedItem.x[id];
-      y = sharedItem.y[id];
+      const imageItem = <ImageProperty>originalImageData.get(id);
+      x = imageItem.x;
+      y = imageItem.y;
+      width = <number>imageItem.width;
+      height = <number>imageItem.height;
     } else if (geometryType === 3) {
-      originalData = this.geometryManager.getOriginalPathList();
-      serializedData = this.geometryManager.getSerializedPathData();
-      sharedItem = serializedData.shared;
-      width = originalData.get(id)?.width ?? 0;
-      height = originalData.get(id)?.height ?? 0;
-      x = originalData.get(id)?.x ?? 0;
-      y = originalData.get(id)?.y ?? 0;
+      const pathItem = <PathProperty>originalPathData.get(id);
+      x = <number>pathItem.x;
+      y = <number>pathItem.y;
+      width = <number>pathItem.width;
+      height = <number>pathItem.height;
     }
 
     const intersect = this.geometryManager.findIntersecting(geometryType, id);
@@ -175,10 +185,6 @@ export default class CanvasManager {
       const realX = (indexX * this.realWidth) / sideNumber;
       const realY = (indexY * this.realHeight) / sideNumber;
       const realPieceToRenderingScale = sideNumber * this.renderingToRealScale;
-      // const clipX = (x) * realPieceToRenderingScale;
-      // const clipY = (y - borderWidth / 2) * realPieceToRenderingScale;
-      // const clipWidth = (width + borderWidth) * realPieceToRenderingScale;
-      // const clipHeight = (height + borderWidth) * realPieceToRenderingScale;
 
       const offscreenCanvas = new OffscreenCanvas(bitmap.width, bitmap.height);
       const ctx = <OffscreenCanvasRenderingContext2D>offscreenCanvas.getContext('2d');
@@ -200,20 +206,20 @@ export default class CanvasManager {
 
       for (let i = 0; i < filteredIdList.length; i++) {
         const id = filteredIdList[i];
-        const geometryType = filteredTypeList[i];
-        const x = sharedItem.x?.[id];
-        const y = sharedItem.y?.[id];
-        const alpha = sharedItem.alpha[id] ?? 1;
-        const state = sharedItem.state[id] || 0;
-        if (geometryType === 0) {
-          originalData = <Map<number, RectProperty>>originalData;
-          const width = sharedItem.width[id];
-          const height = sharedItem.height[id];
-          const fillStyle = originalData.get(id)?.fillStyle || '';
-          const strokeStyle = originalData.get(id)?.strokeStyle || '';
-          const lineDash = originalData.get(id)?.lineDash || [];
-          const lineWidth = sharedItem.lineWidth[id] || 1;
-          const type = sharedItem.type[id] ?? 0;
+        const filteredType = filteredTypeList[i];
+
+        if (filteredType === 0) {
+          const rectItem = <RectProperty>originalRectData.get(id);
+          const x = rectItem.x;
+          const y = rectItem.y;
+          const width = rectItem.width;
+          const height = rectItem.height;
+          const lineWidth = rectItem.lineWidth ?? 0;
+          const fillStyle = rectItem.fillStyle || '';
+          const strokeStyle = rectItem.strokeStyle || '';
+          const lineDash = rectItem.lineDash || [];
+          const type = rectItem.type ?? 0;
+          const alpha = rectItem.alpha ?? 1;
 
           ctx.globalAlpha = alpha;
           ctx.setLineDash(lineDash);
@@ -225,18 +231,14 @@ export default class CanvasManager {
           ctx.rect(x, y, width, height);
 
           // hover
-          if (state === 1) {
+          if (highlightList.rect.has(id)) {
             // todo more property support
-            const hoverProperty = serializedData.hoverIdList.get(id);
-            ctx.globalAlpha = hoverProperty.alpha || ctx.globalAlpha;
-            ctx.strokeStyle = hoverProperty.strokeStyle || ctx.strokeStyle;
-            ctx.fillStyle = hoverProperty.fillStyle || ctx.fillStyle;
-          } else if (state === 2) {
-            // todo more property support
-            const checkedProperty = serializedData.checkedIdList.get(id);
-            ctx.globalAlpha = checkedProperty.alpha || ctx.globalAlpha;
-            ctx.strokeStyle = checkedProperty.strokeStyle || ctx.strokeStyle;
-            ctx.fillStyle = checkedProperty.fillStyle || ctx.fillStyle;
+            const highlightProperty = highlightList.rect.get(id);
+            if (highlightProperty) {
+              ctx.globalAlpha = highlightProperty.alpha || ctx.globalAlpha;
+              ctx.strokeStyle = highlightProperty.strokeStyle || ctx.strokeStyle;
+              ctx.fillStyle = highlightProperty.fillStyle || ctx.fillStyle;
+            }
           }
 
           if (type === 0) {
@@ -249,13 +251,14 @@ export default class CanvasManager {
           }
 
           ctx.closePath();
-        } else if (geometryType === 1) {
-          originalData = <Map<number, TextProperty>>originalData;
-          const width = sharedItem.width[id];
-          const height = sharedItem.height[id];
-          const fontSize = sharedItem.fontSize[id];
-          const content = originalData.get(id)?.content || '';
-          const fillStyle = originalData.get(id)?.fillStyle || '';
+        } else if (filteredType === 1) {
+          const textItem = <TextProperty>originalTextData.get(id);
+          const x = textItem.x;
+          const y = textItem.y;
+          const alpha = textItem.alpha ?? 1;
+          const fontSize = textItem.fontSize;
+          const content = textItem.content || '';
+          const fillStyle = textItem.fillStyle || '';
 
           // direction?: 'ltr' | 'rtl' | 'inherit';
 
@@ -266,10 +269,13 @@ export default class CanvasManager {
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           ctx.fillText(content, x, y);
-        } else if (geometryType === 2) {
-          const { width, height, img, hoverImg, checkImg } = imageMap.get(
-            sharedItem.imageIndex[id],
-          );
+        } else if (filteredType === 2) {
+          const imageItem = <ImageProperty>originalImageData.get(id);
+          const x = imageItem.x;
+          const y = imageItem.y;
+          const alpha = imageItem.alpha ?? 1;
+
+          const { width, height, img, hoverImg, checkImg } = imageMap.get(imageItem.imageIndex);
 
           ctx.save();
 
@@ -277,16 +283,19 @@ export default class CanvasManager {
 
           let renderingImg = img;
 
-          if (state === 1) {
+          if (highlightList.image.has(id)) {
             // todo more property support
-            const hoverProperty = serializedData.hoverIdList.get(id);
-            ctx.globalAlpha = hoverProperty.alpha || ctx.globalAlpha;
-            renderingImg = hoverImg;
-          } else if (state === 2) {
-            // todo more property support
-            const checkedProperty = serializedData.checkedIdList.get(id);
-            ctx.globalAlpha = checkedProperty.alpha || ctx.globalAlpha;
-            renderingImg = checkImg;
+            const highlightProperty = highlightList.image.get(id);
+            if (highlightProperty) {
+              ctx.globalAlpha = highlightProperty.alpha || ctx.globalAlpha;
+              if (highlightProperty.state === 'hover') {
+                renderingImg = hoverImg;
+              } else if (highlightProperty.state === 'check') {
+                renderingImg = checkImg;
+              } else {
+                renderingImg = img;
+              }
+            }
           }
 
           ctx.drawImage(renderingImg, x, y, width, height);
@@ -304,18 +313,21 @@ export default class CanvasManager {
           // }
 
           ctx.restore();
-        } else if (geometryType === 3) {
-          const fromX = sharedItem.fromX[id];
-          const fromY = sharedItem.fromY[id];
-          const toX = sharedItem.toX[id];
-          const toY = sharedItem.toY[id];
-          const lineCap = sharedItem.lineCap[id] ?? 0;
-          const lineWidth = sharedItem.lineWidth[id] || 1;
-          const lineDash = (<PathProperty>originalData?.get(id)).lineDash || [];
-          const strokeStyle = (<PathProperty>originalData?.get(id)).strokeStyle || '';
-          const state = sharedItem.state[id];
+        } else if (filteredType === 3) {
+          const pathItem = <PathProperty>originalPathData.get(id);
+          const alpha = pathItem.alpha ?? 1;
+          const fromX = pathItem.fromX;
+          const fromY = pathItem.fromY;
+          const toX = pathItem.toX;
+          const toY = pathItem.toY;
+          const lineCap = pathItem.lineCap ?? 0;
+          const lineWidth = pathItem.lineWidth || 1;
+          const lineDash = pathItem.lineDash || [];
+          const strokeStyle = pathItem.strokeStyle || '';
 
           ctx.save();
+
+          ctx.beginPath();
 
           ctx.globalAlpha = alpha;
           ctx.setLineDash(lineDash);
@@ -324,21 +336,20 @@ export default class CanvasManager {
           ctx.lineCap = <CanvasLineCap>globalLineCaps[lineCap];
 
           // hover
-          if (state === 1) {
+          if (highlightList.path.has(id)) {
             // todo more property support
-            const hoverProperty = serializedData.hoverIdList.get(id);
-            ctx.globalAlpha = hoverProperty.alpha || ctx.globalAlpha;
-            ctx.strokeStyle = hoverProperty.strokeStyle || ctx.strokeStyle;
-          } else if (state === 2) {
-            // todo more property support
-            const checkedProperty = serializedData.checkedIdList.get(id);
-            ctx.globalAlpha = checkedProperty.alpha || ctx.globalAlpha;
-            ctx.strokeStyle = checkedProperty.strokeStyle || ctx.strokeStyle;
+            const highlightProperty = highlightList.path.get(id);
+            if (highlightProperty) {
+              ctx.globalAlpha = highlightProperty.alpha || ctx.globalAlpha;
+              ctx.strokeStyle = highlightProperty.strokeStyle || ctx.strokeStyle;
+              ctx.setLineDash(highlightProperty.lineDash || lineDash);
+            }
           }
 
           ctx.moveTo(fromX, fromY);
           ctx.lineTo(toX, toY);
           ctx.stroke();
+          ctx.closePath();
 
           ctx.restore();
         }
@@ -421,89 +432,57 @@ export default class CanvasManager {
 
     const pieceInfo = this.geometryManager.getCanvasArea(level, pieceIndex);
 
-    const serializedRectData = this.geometryManager.getSerializedRectData();
-    const serializedTextData = this.geometryManager.getSerializedTextData();
-    const serializedImageData = this.geometryManager.getSerializedImageData();
-    const serializedPathData = this.geometryManager.getSerializedPathData();
-
-    // rect & image & path
-    const sharedRect = serializedRectData.shared;
-    const sharedText = serializedTextData.shared;
-    const sharedImage = serializedImageData.shared;
-    const sharedPath = serializedPathData.shared;
+    const {
+      rect: sharedRect,
+      text: sharedText,
+      image: sharedImage,
+      path: sharedPath,
+    } = this.geometryManager.getSerializedData();
 
     // origin
+    const originalRectData = this.geometryManager.getOriginalRectList();
+    const originalTextData = this.geometryManager.getOriginalTextList();
+    const originalImageData = this.geometryManager.getOriginalImageList();
     const originalPathData = this.geometryManager.getOriginalPathList();
 
     // image map
     const imageMap = this.geometryManager.getImageMap();
 
     // remove hover state
-    for (let [id] of serializedRectData.hoverIdList) {
-      const initialX =
-        (sharedRect.x[id] - boundary[0] - sharedRect.lineWidth[id] / 2) * scale + totalOffsetX;
-      const initialY =
-        (sharedRect.y[id] - boundary[2] - sharedRect.lineWidth[id] / 2) * scale + totalOffsetY;
-      const state = sharedRect.state[id];
-      if (
-        !(
-          pointerX >= initialX &&
-          pointerX <= initialX + (sharedRect.width[id] + sharedRect.lineWidth[id]) * scale &&
-          pointerY >= initialY &&
-          pointerY <= initialY + (sharedRect.height[id] + sharedRect.lineWidth[id]) * scale
-        )
-      ) {
-        if (state === CommonState.hover) {
-          serializedRectData.hoverIdList.delete(id);
-          sharedRect.state[id] = CommonState.normal;
-          this.updateCanvasByGeometryId(0, id);
-        }
+    for (let [key, { type, id }] of this.hoverList) {
+      let minX = 0;
+      let minY = 0;
+      let maxX = 0;
+      let maxY = 0;
+      if (type === 0) {
+        const rect = <RectProperty>originalRectData.get(id);
+        minX = (rect.x - boundary[0] - (rect.lineWidth ?? 0) / 2) * scale + totalOffsetX;
+        minY = (rect.y - boundary[2] - (rect.lineWidth ?? 0) / 2) * scale + totalOffsetY;
+        maxX = minX + (rect.width + (rect.lineWidth ?? 0)) * scale;
+        maxY = minY + (rect.height + (rect.lineWidth ?? 0)) * scale;
+      } else if (type === 2) {
+        const image = <ImageProperty>originalImageData.get(id);
+        const { width, height } = imageMap.get(sharedImage.imageIndex[id]);
+
+        minX = (image.x - boundary[0]) * scale + totalOffsetX;
+        minY = (image.y - boundary[2]) * scale + totalOffsetY;
+        maxX = minX + width * scale;
+        maxY = minY + height * scale;
+      } else if (type === 3) {
+        const path = originalPathData.get(id);
+        const width = path?.width ?? 0;
+        const height = path?.height ?? 0;
+
+        minX = ((path?.x ?? 0) - boundary[0]) * scale + totalOffsetX;
+        minY = ((path?.y ?? 0) - boundary[2]) * scale + totalOffsetY;
+        maxX = minX + width * scale;
+        maxY = minY + height * scale;
       }
-    }
 
-    for (let [id] of serializedImageData.hoverIdList) {
-      const initialX = (sharedImage.x[id] - boundary[0]) * scale + totalOffsetX;
-      const initialY = (sharedImage.y[id] - boundary[2]) * scale + totalOffsetY;
-      const { width, height } = imageMap.get(sharedImage.imageIndex[id]);
-      const state = sharedImage.state[id];
-      if (
-        !(
-          pointerX >= initialX &&
-          pointerX <= initialX + width * scale &&
-          pointerY >= initialY &&
-          pointerY <= initialY + height * scale
-        )
-      ) {
-        if (state === CommonState.hover) {
-          serializedImageData.hoverIdList.delete(id);
-          sharedImage.state[id] = CommonState.normal;
-          this.updateCanvasByGeometryId(2, id);
-        }
-      }
-    }
-
-    for (let [id] of serializedPathData.hoverIdList) {
-      const pathInfo = originalPathData.get(id);
-      const initialX = (pathInfo?.x ?? 0 - boundary[0]) * scale + totalOffsetX;
-      const initialY = (pathInfo?.y ?? 0 - boundary[2]) * scale + totalOffsetY;
-      const state = sharedPath.state[id];
-
-      const width = pathInfo?.width ?? 0;
-      const height = pathInfo?.height ?? 0;
-
-      if (
-        !(
-          pointerX >= initialX &&
-          pointerX <= initialX + width * scale &&
-          pointerY >= initialY &&
-          pointerY <= initialY + height * scale
-        )
-      ) {
-        if (state === CommonState.hover) {
-          serializedPathData.hoverIdList.delete(id);
-          sharedPath.state[id] = CommonState.normal;
-          this.updateCanvasByGeometryId(3, id);
-        }
+      if (!(pointerX >= minX && pointerX <= maxX && pointerY >= minY && pointerY <= maxY)) {
+        const currentGeometry = this.geometryManager.getOriginalDataByType(type).get(id);
+        currentGeometry.hoverOut?.();
+        this.hoverList.delete(key);
       }
     }
 
@@ -515,46 +494,48 @@ export default class CanvasManager {
       const id = idList[i];
 
       let sharedItem = null;
-      let serializedData = null;
       let borderWidth = 0;
       let sharedItemWidth = 0;
       let sharedItemHeight = 0;
       let x = 0;
       let y = 0;
+      let originalData = null;
 
       if (type === 0) {
         sharedItem = sharedRect;
-        serializedData = serializedRectData;
         borderWidth = sharedItem.lineWidth[id];
         sharedItemWidth = sharedItem.width[id];
         sharedItemHeight = sharedItem.height[id];
         x = sharedItem.x[id];
         y = sharedItem.y[id];
+        originalData = originalRectData;
       } else if (type === 1) {
         sharedItem = sharedText;
-        serializedData = serializedTextData;
         sharedItemWidth = sharedItem.width[id];
         sharedItemHeight = sharedItem.height[id];
         x = sharedItem.x[id];
         y = sharedItem.y[id];
+        originalData = originalTextData;
       } else if (type === 2) {
         const imageInfo = imageMap.get(sharedImage.imageIndex[id]);
         sharedItem = sharedImage;
-        serializedData = serializedImageData;
         sharedItemWidth = imageInfo.width;
         sharedItemHeight = imageInfo.height;
         x = sharedItem.x[id];
         y = sharedItem.y[id];
+        originalData = originalImageData;
       } else if (type === 3) {
         sharedItem = sharedPath;
-        serializedData = serializedPathData;
         sharedItemWidth = originalPathData.get(id)?.width ?? 0;
         sharedItemHeight = originalPathData.get(id)?.height ?? 0;
         x = originalPathData.get(id)?.x ?? 0;
         y = originalPathData.get(id)?.y ?? 0;
+        originalData = originalPathData;
       }
 
-      if (!serializedData?.hoverFunction?.[id]) {
+      const currentGeometry = <any>originalData?.get(id);
+
+      if (!currentGeometry?.hover) {
         continue;
       }
 
@@ -567,67 +548,20 @@ export default class CanvasManager {
         pointerY >= initialY &&
         pointerY <= initialY + (sharedItemHeight + borderWidth) * scale
       ) {
-        const state = sharedItem.state?.[id];
-        if (
-          state === CommonState.hover ||
-          state === CommonState.checked ||
-          serializedData.hoverIdList?.has(id)
-        ) {
+        if (this.hoverList.has(`${type}@${id}`)) {
           break;
         }
 
-        sharedItem.state[id] = CommonState.hover;
+        this.hoverList.set(`${type}@${id}`, {
+          type,
+          id,
+        });
 
-        const property = serializedData.hoverFunction[id]?.(id);
-
-        serializedData.hoverIdList.set(id, property);
+        currentGeometry.hover();
 
         this.updateCanvasByGeometryId(type, id);
 
         break;
-      }
-    }
-  }
-
-  public updateTransform(transform: any): void {
-    this.renderingOffsetX = transform.x;
-    this.renderingOffsetY = transform.y;
-    this.renderingScale = transform.k;
-    this.level = Util.getLevelByScale(transform.k);
-    const areaList = this.getPiecesIndex(transform);
-    this.renderList = [];
-
-    for (let pieceIndex of areaList) {
-      const bitmap = this.geometryManager.getCanvasAreaBitmap(this.level, pieceIndex);
-      const indexX = pieceIndex % this.sideNumberOnLevel;
-      const indexY = Math.floor(pieceIndex / this.sideNumberOnLevel);
-      const renderingX = (indexX * this.initialRenderingWidth) / this.sideNumberOnLevel;
-      const renderingY = (indexY * this.initialRenderingHeight) / this.sideNumberOnLevel;
-      const realX = (indexX * this.realWidth) / this.sideNumberOnLevel;
-      const realY = (indexY * this.realHeight) / this.sideNumberOnLevel;
-      if (bitmap) {
-        this.renderList.push({
-          x: renderingX,
-          y: renderingY,
-          bitmap,
-        });
-      } else {
-        this.paintPartCanvas(
-          realX,
-          realY,
-          this.realWidth / this.sideNumberOnLevel,
-          this.realHeight / this.sideNumberOnLevel,
-          pieceIndex,
-        )
-          .then((bitmap: ImageBitmap | null) => {
-            this.renderList.push({
-              x: renderingX,
-              y: renderingY,
-              bitmap,
-            });
-            this.geometryManager.setCanvasArea(this.level, pieceIndex, <ImageBitmap>bitmap);
-          })
-          .catch((e) => {});
       }
     }
   }
@@ -670,18 +604,17 @@ export default class CanvasManager {
 
     const pieceInfo = this.geometryManager.getCanvasArea(level, pieceIndex);
 
-    const serializedRectData = this.geometryManager.getSerializedRectData();
-    const serializedTextData = this.geometryManager.getSerializedTextData();
-    const serializedImageData = this.geometryManager.getSerializedImageData();
-    const serializedPathData = this.geometryManager.getSerializedPathData();
-
-    // rect & image & path
-    const sharedRect = serializedRectData.shared;
-    const sharedText = serializedTextData.shared;
-    const sharedImage = serializedImageData.shared;
-    const sharedPath = serializedPathData.shared;
+    const {
+      rect: sharedRect,
+      text: sharedText,
+      image: sharedImage,
+      path: sharedPath,
+    } = this.geometryManager.getSerializedData();
 
     // origin
+    const originalRectData = this.geometryManager.getOriginalRectList();
+    const originalTextData = this.geometryManager.getOriginalTextList();
+    const originalImageData = this.geometryManager.getOriginalImageList();
     const originalPathData = this.geometryManager.getOriginalPathList();
 
     // image map
@@ -695,46 +628,48 @@ export default class CanvasManager {
       const id = idList[i];
 
       let sharedItem = null;
-      let serializedData = null;
       let borderWidth = 0;
       let sharedItemWidth = 0;
       let sharedItemHeight = 0;
       let x = 0;
       let y = 0;
+      let originalData = null;
 
       if (type === 0) {
         sharedItem = sharedRect;
-        serializedData = serializedRectData;
         borderWidth = sharedItem.lineWidth[id];
         sharedItemWidth = sharedItem.width[id];
         sharedItemHeight = sharedItem.height[id];
         x = sharedItem.x[id];
         y = sharedItem.y[id];
+        originalData = originalRectData;
       } else if (type === 1) {
         sharedItem = sharedText;
-        serializedData = serializedTextData;
         sharedItemWidth = sharedItem.width[id];
         sharedItemHeight = sharedItem.height[id];
         x = sharedItem.x[id];
         y = sharedItem.y[id];
+        originalData = originalTextData;
       } else if (type === 2) {
         const imageInfo = imageMap.get(sharedImage.imageIndex[id]);
         sharedItem = sharedImage;
-        serializedData = serializedImageData;
         sharedItemWidth = imageInfo.width;
         sharedItemHeight = imageInfo.height;
         x = sharedItem.x[id];
         y = sharedItem.y[id];
+        originalData = originalImageData;
       } else if (type === 3) {
         sharedItem = sharedPath;
-        serializedData = serializedPathData;
         sharedItemWidth = originalPathData.get(id)?.width ?? 0;
         sharedItemHeight = originalPathData.get(id)?.height ?? 0;
         x = originalPathData.get(id)?.x ?? 0;
         y = originalPathData.get(id)?.y ?? 0;
+        originalData = originalPathData;
       }
 
-      if (!serializedData?.hoverFunction?.[id]) {
+      const currentGeometry = <any>originalData?.get(id);
+
+      if (!currentGeometry?.click) {
         continue;
       }
 
@@ -747,20 +682,55 @@ export default class CanvasManager {
         pointerY >= initialY &&
         pointerY <= initialY + (sharedItemHeight + borderWidth) * scale
       ) {
-        const state = sharedItem.state?.[id];
-        if (state === CommonState.checked || serializedData.checkedIdList.has(id)) {
-          break;
-        }
-
-        sharedItem.state[id] = CommonState.checked;
-
-        const property = serializedData.clickFunction[id]?.(id);
-
-        serializedData.checkedIdList.set(id, property);
+        currentGeometry.click();
 
         this.updateCanvasByGeometryId(type, id);
 
         break;
+      }
+    }
+  }
+
+  public updateTransform(transform: any): void {
+    this.renderingOffsetX = transform.x;
+    this.renderingOffsetY = transform.y;
+    this.renderingScale = transform.k;
+    this.level = Util.getLevelByScale(transform.k);
+    const areaList = this.getPiecesIndex(transform);
+
+    this.renderList = [];
+
+    for (let pieceIndex of areaList) {
+      const bitmap = this.geometryManager.getCanvasAreaBitmap(this.level, pieceIndex);
+      const indexX = pieceIndex % this.sideNumberOnLevel;
+      const indexY = Math.floor(pieceIndex / this.sideNumberOnLevel);
+      const renderingX = (indexX * this.initialRenderingWidth) / this.sideNumberOnLevel;
+      const renderingY = (indexY * this.initialRenderingHeight) / this.sideNumberOnLevel;
+      const realX = (indexX * this.realWidth) / this.sideNumberOnLevel;
+      const realY = (indexY * this.realHeight) / this.sideNumberOnLevel;
+      if (bitmap) {
+        this.renderList.push({
+          x: renderingX,
+          y: renderingY,
+          bitmap,
+        });
+      } else {
+        this.paintPartCanvas(
+          realX,
+          realY,
+          this.realWidth / this.sideNumberOnLevel,
+          this.realHeight / this.sideNumberOnLevel,
+          pieceIndex,
+        )
+          .then((bitmap: ImageBitmap | null) => {
+            this.renderList.push({
+              x: renderingX,
+              y: renderingY,
+              bitmap,
+            });
+            this.geometryManager.setCanvasArea(this.level, pieceIndex, <ImageBitmap>bitmap);
+          })
+          .catch((e) => {});
       }
     }
   }
@@ -828,7 +798,7 @@ export default class CanvasManager {
         'wheel',
         (event: WheelEvent) => {
           if (!draggable) {
-            const perScale = 0.2;
+            const perScale = 0.2 * k;
             if (event.deltaY < 0) {
               x = event.offsetX - (event.offsetX - x) * (1 + perScale / k);
               y = event.offsetY - (event.offsetY - y) * (1 + perScale / k);
@@ -1026,16 +996,18 @@ export default class CanvasManager {
         return reject();
       }
 
-      // 找到一个空闲的线程
-      const subCanvas = this.subCanvasList.find((item) => !item.getIsBusy());
+      const subCanvas = this.subCanvasList.find(
+        (item) => item.getIsInitialized() && !item.getIsBusy(),
+      );
 
       const boundary = this.geometryManager.getBoundary();
 
       if (subCanvas) {
         subCanvas.setCharacter(characterHash);
         subCanvas
-          .run(
-            new OffscreenCanvas(paintWidth, paintHeight),
+          .render(
+            paintWidth,
+            paintHeight,
             x + boundary[0],
             y + boundary[2],
             this.level,
@@ -1051,10 +1023,11 @@ export default class CanvasManager {
     });
   }
 
-  private render(): void {
+  private render(once = false): void {
     const ctx = this.mainCtx;
 
     ctx.save();
+    // ctx.imageSmoothingEnabled = false;
     ctx.clearRect(0, 0, this.mainCanvas.width, this.mainCanvas.height);
 
     ctx.translate(this.renderingOffsetX, this.renderingOffsetY);
@@ -1083,7 +1056,9 @@ export default class CanvasManager {
 
     ctx.restore();
 
-    requestAnimationFrame(() => this.render());
+    if (!once) {
+      requestAnimationFrame(() => this.render());
+    }
   }
 
   public static from(canvasDom: HTMLCanvasElement): Paint {
