@@ -10,12 +10,16 @@ import CanvasManager from './CanvasManager';
 export default class GeometryManager {
   private static mgr: GeometryManager | null = null;
 
-  private contextHelper = <OffscreenCanvasRenderingContext2D>(
-    new OffscreenCanvas(0, 0).getContext('2d')
+  private contextHelper = <OffscreenCanvasRenderingContext2D>new OffscreenCanvas(0, 0).getContext(
+    '2d',
+    {
+      willReadFrequently: true,
+    },
   );
 
   private canvasArea: Array<
     Array<{
+      state: 0 | 1 | 2; // 0未渲染 1待渲染 2已渲染
       bitmap: ImageBitmap | OffscreenCanvas | null;
       rendering: {
         typeList: Uint8Array;
@@ -161,6 +165,7 @@ export default class GeometryManager {
   private setAreaByLevel = (level: number) => {
     const pieceNumber = 4 ** level;
     this.canvasArea[level] = Array.from({ length: pieceNumber }, () => ({
+      state: 0,
       bitmap: null,
       rendering: {
         typeList: new Uint8Array(),
@@ -172,7 +177,7 @@ export default class GeometryManager {
     }
   };
 
-  private setAreaPiece = (level: number, pieceIndex: number) => {
+  public setAreaPiece = (level: number, pieceIndex: number) => {
     const sideNumber = 1 << level;
 
     const offsetX = this.boundary[0];
@@ -209,8 +214,25 @@ export default class GeometryManager {
               item: any,
             ) => {
               // todo use text align etc. to set selfOffset
-              let selfOffsetX = item.propertyType === 1 ? -item.width / 2 : 0;
-              let selfOffsetY = item.propertyType === 1 ? -item.height / 2 : 0;
+              let selfOffsetX = 0;
+              let selfOffsetY = 0;
+              let selfWidth = item.width;
+              let selfHeight = item.height;
+
+              if (item.propertyType === 1) {
+                selfOffsetX = -item.width / 2;
+                selfOffsetY = -item.height / 2;
+              } else if (item.propertyType === 3) {
+                if (item.keepWidth) {
+                  if (selfHeight > selfWidth) {
+                    selfWidth = item.width / sideNumber;
+                    selfOffsetX = -selfWidth / 2 - item.x + item.fromX;
+                  } else {
+                    selfHeight = item.height / sideNumber;
+                    selfOffsetY = -selfHeight / 2 - item.y + item.fromY;
+                  }
+                }
+              }
 
               // todo add crossing region flag
               if (
@@ -224,8 +246,8 @@ export default class GeometryManager {
                   {
                     x: item.x + selfOffsetX,
                     y: item.y + selfOffsetY,
-                    width: item.width,
-                    height: item.height,
+                    width: selfWidth,
+                    height: selfHeight,
                   },
                 )
               ) {
@@ -264,17 +286,37 @@ export default class GeometryManager {
         // todo use text align etc. to set selfOffset
         let selfOffsetX = 0;
         let selfOffsetY = 0;
+        let selfWidth = 0;
+        let selfHeight = 0;
 
         if (type === 0) {
-          item = this.drawingDataModel.rect.get(id);
+          item = <RectProperty>this.drawingDataModel.rect.get(id);
+          selfWidth = item.width;
+          selfHeight = item.height;
         } else if (type === 1) {
-          item = this.drawingDataModel.text.get(id);
+          item = <TextProperty>this.drawingDataModel.text.get(id);
           selfOffsetX = -(item?.width ?? 0) / 2;
           selfOffsetY = -(item?.height ?? 0) / 2;
+          selfWidth = <number>item.width;
+          selfHeight = <number>item.height;
         } else if (type === 2) {
-          item = this.drawingDataModel.image.get(id);
+          item = <ImageProperty>this.drawingDataModel.image.get(id);
+          selfWidth = <number>item.width;
+          selfHeight = <number>item.height;
         } else if (type === 3) {
-          item = this.drawingDataModel.path.get(id);
+          item = <PathProperty>this.drawingDataModel.path.get(id);
+          selfWidth = <number>item.width;
+          selfHeight = <number>item.height;
+
+          if (item.keepWidth) {
+            if (selfHeight > selfWidth) {
+              selfWidth = selfWidth / sideNumber;
+              selfOffsetX = -selfWidth / 2 - (item.x ?? 0) + item.fromX;
+            } else {
+              selfHeight = selfHeight / sideNumber;
+              selfOffsetY = -selfHeight / 2 - (item.y ?? 0) + item.fromY;
+            }
+          }
         }
 
         if (
@@ -288,8 +330,8 @@ export default class GeometryManager {
             {
               x: (item?.x ?? 0) + selfOffsetX,
               y: (item?.y ?? 0) + selfOffsetY,
-              width: item?.width ?? 0,
-              height: item?.height ?? 0,
+              width: selfWidth,
+              height: selfHeight,
             },
           )
         ) {
@@ -370,12 +412,13 @@ export default class GeometryManager {
     return [minX, maxX, minY, maxY, maxX - minX, maxY - minY];
   }
 
-  private fillCanvasArea(level: number, index: number) {
+  public fillCanvasArea(level: number, index: number) {
     if (!this.canvasArea[level]) {
       this.canvasArea[level] = [];
     }
     if (!this.canvasArea[level][index]) {
       this.canvasArea[level][index] = {
+        state: 0,
         bitmap: null,
         rendering: {
           typeList: new Uint8Array(),
@@ -476,8 +519,9 @@ export default class GeometryManager {
   }
 
   public setCanvasArea(level: number, index: number, canvas: OffscreenCanvas): void;
-  public setCanvasArea(level: number, index: number, bitmap: ImageBitmap): void;
+  public setCanvasArea(level: number, index: number, bitmap: ImageBitmap | null): void;
   public setCanvasArea(level: number, index: number, rect: RectProperty): void;
+  public setCanvasArea(level: number, index: number, state: number): void;
   public setCanvasArea(
     level: number,
     index: number,
@@ -501,9 +545,13 @@ export default class GeometryManager {
         this.canvasArea[level][index].rendering.idList[i] = value[i].id;
         this.canvasArea[level][index].rendering.typeList[i] = value[i].propertyType;
       }
-    } else if (this.isRectPropertyType(value)) {
-      // this.canvasArea[level][index].rectList.push(value);
+    } else if (value === 0 || value === 1 || value === 2) {
+      this.canvasArea[level][index].state = value;
     }
+  }
+
+  public getCanvasAreaState(level: number, index: number): 0 | 1 | 2 {
+    return this.canvasArea[level]?.[index]?.state;
   }
 
   public getCanvasAreaBitmap(level: number, index: number): any {
@@ -637,7 +685,7 @@ export default class GeometryManager {
         }),
       ),
     );
-    sharedText.other = new Uint8Array(encodedData.length);
+    sharedText.other = new Uint8Array(new SharedArrayBuffer(encodedData.length));
     sharedText.other.set(encodedData);
   }
 
@@ -677,6 +725,7 @@ export default class GeometryManager {
     sharedPath.zIndex = new Uint32Array(new SharedArrayBuffer(pathNumber * 4));
     sharedPath.propertyType = new Uint8Array(new SharedArrayBuffer(pathNumber));
     sharedPath.lineCap = new Uint8Array(new SharedArrayBuffer(pathNumber));
+    sharedPath.keepWidth = new Uint8Array(new SharedArrayBuffer(pathNumber));
 
     const textEncoder = new TextEncoder();
     const encodedData = textEncoder.encode(
@@ -691,6 +740,7 @@ export default class GeometryManager {
           sharedPath.zIndex[i] = item.zIndex;
           sharedPath.propertyType[i] = item.propertyType;
           sharedPath.lineCap[i] = item.lineCap;
+          sharedPath.keepWidth[i] = item.keepWidth;
 
           return {
             lineDash: item.lineDash,
@@ -701,6 +751,65 @@ export default class GeometryManager {
     );
     sharedPath.other = new Uint8Array(encodedData.length);
     sharedPath.other.set(encodedData);
+  }
+
+  public async serializeOriginalImageMap(): Promise<void> {
+    const imageMapHash: any = {};
+
+    const convertImage2Base64 = (img: ImageBitmap) => {
+      return new Promise((resolve) => {
+        const canvas = new OffscreenCanvas(img.width, img.height);
+        const ctx = <OffscreenCanvasRenderingContext2D>canvas.getContext('2d', {
+          willReadFrequently: true,
+        });
+        ctx.drawImage(img, 0, 0);
+        canvas.convertToBlob().then((data) => {
+          const reader = new FileReader();
+          reader.onload = function (event) {
+            const base64String = event.target?.result;
+            resolve(base64String);
+          };
+          reader.readAsDataURL(data);
+        });
+      });
+    };
+
+    for (const [key, { width, height, img, hoverImg, checkImg }] of this.imageMap) {
+      let realKey: any;
+      for (let [id, value] of this.nameIdMap) {
+        if (key === value) {
+          realKey = id;
+        }
+      }
+
+      imageMapHash[realKey] = {
+        width,
+        height,
+        imgBase64: await convertImage2Base64(img),
+        hoverImgBase64: await convertImage2Base64(hoverImg),
+        checkImgBase64: await convertImage2Base64(checkImg),
+      };
+    }
+  }
+
+  public serializeImageMap() {
+    const imageMapHash: any = {};
+    for (const [key, { width, height, imgBase64, hoverImgBase64, checkImgBase64 }] of this
+      .imageMap) {
+      imageMapHash[key] = {
+        width,
+        height,
+        imgBase64,
+        hoverImgBase64,
+        checkImgBase64,
+      };
+    }
+
+    const textEncoder = new TextEncoder();
+    const encodedData = textEncoder.encode(JSON.stringify(imageMapHash));
+    const sharedImageMap = new Uint8Array(new SharedArrayBuffer(encodedData.length));
+    sharedImageMap.set(encodedData);
+    return sharedImageMap;
   }
 
   public getSerializedRectData(): any {
@@ -751,7 +860,7 @@ export default class GeometryManager {
       const pieceList = this.canvasArea?.[level] || [];
 
       for (let pieceIndex = 0; pieceIndex < pieceList.length; pieceIndex++) {
-        if (pieceList[pieceIndex].bitmap && pieceList[pieceIndex].rendering.idList.includes(id)) {
+        if (pieceList[pieceIndex]?.bitmap && pieceList[pieceIndex].rendering.idList.includes(id)) {
           queryList.push({
             level,
             index: pieceIndex,
@@ -919,98 +1028,39 @@ export default class GeometryManager {
     };
   }
 
-  public loadImage(
-    img: HTMLImageElement,
-    info: Array<{
-      id: string;
-      x: number;
-      y: number;
+  public loadImage(spriteInfo: {
+    [key: string]: {
       width: number;
       height: number;
-      renderingWidth: number;
-      renderingHeight: number;
-    }>,
-  ): Promise<void> {
+      imgBase64: string;
+      hoverImgBase64: string;
+      checkImgBase64: string;
+    };
+  }): Promise<void> {
     return new Promise((resolve) => {
-      const offscreenCanvas = new OffscreenCanvas(img.width, img.height);
-      const offscreenCtx = <OffscreenCanvasRenderingContext2D>offscreenCanvas.getContext('2d');
-      offscreenCtx.drawImage(img, 0, 0);
-
-      for (let i = 0; i < info.length; i++) {
-        const { id, x, y, width, height, renderingWidth, renderingHeight } = info[i];
-
-        const newOffscreenCanvas = new OffscreenCanvas(width, height);
-        const newOffscreenCtx = <OffscreenCanvasRenderingContext2D>(
-          newOffscreenCanvas.getContext('2d')
-        );
-
-        // const intervalColor = [0, 0, 0, 255];
-        // const intervalColor2 = [92, 219, 211, 255];
-
-        // normal state
-        let imageData = offscreenCtx.getImageData(x, y, width, height);
-        let data = imageData.data;
-
-        const normalColor = [255, 156, 110, 255];
-        for (let i = 0; i < data.length; i += 4) {
-          if (data[i + 3] !== 0) {
-            data[i] = normalColor[0];
-            data[i + 1] = normalColor[1];
-            data[i + 2] = normalColor[2];
-            data[i + 3] = normalColor[3];
-          }
-        }
-        newOffscreenCtx.putImageData(imageData, 0, 0);
-        const normalImage = newOffscreenCanvas.transferToImageBitmap();
-
-        // hover state
-        imageData = offscreenCtx.getImageData(x, y, width, height);
-        data = imageData.data;
-        const hoverColor = [92, 219, 211, 255];
-        for (let i = 0; i < data.length; i += 4) {
-          if (
-            data[i + 3] !== 0 &&
-            data[i] !== hoverColor[0] &&
-            data[i + 1] !== hoverColor[1] &&
-            data[i + 2] !== hoverColor[2]
-          ) {
-            data[i] = 0;
-            data[i + 1] = 0;
-            data[i + 2] = 0;
-            data[i + 3] = 0;
-          }
-        }
-        newOffscreenCtx.clearRect(0, 0, width, height);
-        newOffscreenCtx.putImageData(imageData, 0, 0);
-        const hoverImage = newOffscreenCanvas.transferToImageBitmap();
-
-        // checke state
-        imageData = offscreenCtx.getImageData(x, y, width, height);
-        data = imageData.data;
-        const checkColor = [0, 50, 211, 255];
-        for (let i = 0; i < data.length; i += 4) {
-          if (data[i + 3] !== 0) {
-            data[i] = checkColor[0];
-            data[i + 1] = checkColor[1];
-            data[i + 2] = checkColor[2];
-            data[i + 3] = checkColor[3];
-          }
-        }
-        newOffscreenCtx.clearRect(0, 0, width, height);
-        newOffscreenCtx.putImageData(imageData, 0, 0);
-        const checkImage = newOffscreenCanvas.transferToImageBitmap();
-
-        this.nameIdMap.set(id, i);
+      let i = 0;
+      for (let key in spriteInfo) {
+        const { width, height, imgBase64, hoverImgBase64, checkImgBase64 } = spriteInfo[key];
+        const img = new Image();
+        const hoverImg = new Image();
+        const checkImg = new Image();
+        this.nameIdMap.set(key, 0);
         this.imageMap.set(i, {
-          img: normalImage,
-          hoverImg: hoverImage,
-          checkImg: checkImage,
-          width: renderingWidth,
-          height: renderingHeight,
+          img,
+          hoverImg,
+          checkImg,
+          width,
+          height,
+          imgBase64,
+          hoverImgBase64,
+          checkImgBase64,
         });
-
-        resolve();
+        img.src = imgBase64;
+        hoverImg.src = hoverImgBase64;
+        checkImg.src = checkImgBase64;
+        i++;
       }
+      resolve();
     });
   }
 
@@ -1027,13 +1077,18 @@ export default class GeometryManager {
     // path serialize
     this.serializePath();
 
+    // image map serialize
+    const sharedImageMap = this.serializeImageMap();
+
     this.boundary = this.getDrawingBoundary();
 
     this.setAreaByLevel(1);
     this.setAreaByLevel(2);
     this.setAreaByLevel(3);
 
-    await Promise.all(canvasManager.getSubCanvasList().map((subCanvas) => subCanvas.init()));
+    await Promise.all(
+      canvasManager.getSubCanvasList().map((subCanvas) => subCanvas.init(sharedImageMap)),
+    );
   }
 
   public static from(): GeometryManager {

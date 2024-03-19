@@ -12,19 +12,33 @@ export default class SubCanvas {
       [
         `
         const render = ${this.retRender()}
+        const parseImage = ${this.retParseImage()}
 
         let shared = null;
-        let imageMap = null;
+        let imageMap = new Map();
 
-        self.onmessage = (e) => {
+        self.onmessage = async (e) => {
           if(e.data.type === 'init') {
             shared = e.data.shared;
-            imageMap = e.data.imageMap;
+            const imageMapStr = e.data.sharedImageMap;
+            const textDecoder = new TextDecoder();
+            const sharedImageMapData = new Uint8Array(imageMapStr);
+            const sharedImageMap = JSON.parse(textDecoder.decode(sharedImageMapData));
+            for(let key in sharedImageMap){
+              const {width,height,imgBase64,hoverImgBase64,checkImgBase64} = sharedImageMap[key];
+              imageMap.set(Number(key),{
+                width,
+                height,
+                img:await parseImage(imgBase64),
+                hoverImg:await parseImage(hoverImgBase64),
+                checkImg:await parseImage(checkImgBase64)
+              });
+            }
 
             self.postMessage({
               type: 'init'
             });
-          }else if(e.data.type === 'render') {
+          } else if(e.data.type === 'render') {
             const width = e.data.width;
             const height = e.data.height;
             const offsetX = e.data.offsetX;
@@ -33,12 +47,17 @@ export default class SubCanvas {
             const typeList = e.data.typeList;
             const highlightList = e.data.highlightList;
             const realPieceToRenderingScale = e.data.realPieceToRenderingScale;
-  
+
+            const level = e.data.level;
+            const pieceIndex = e.data.pieceIndex;
+
             const canvas = render(width,height,shared,idList,typeList,highlightList,imageMap,offsetX,offsetY,realPieceToRenderingScale);
 
             self.postMessage({
               type: "render",
-              img: canvas?.transferToImageBitmap()
+              img: canvas?.transferToImageBitmap(),
+              level,
+              pieceIndex
             });
           }
           
@@ -50,6 +69,28 @@ export default class SubCanvas {
 
     this.worker = new Worker(URL.createObjectURL(this.blob_str));
   }
+
+  public retParseImage = () => {
+    return (imageDataURI: string) => {
+      return new Promise((resolve) => {
+        const byteCharacters = atob(imageDataURI.split(',')[1]);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: 'image/png' });
+
+        createImageBitmap(blob)
+          .then(function (bitmap) {
+            resolve(bitmap);
+          })
+          .catch(function (error) {
+            console.error('Error loading image in worker:', error);
+          });
+      });
+    };
+  };
 
   public retRender = () => {
     return (
@@ -67,11 +108,9 @@ export default class SubCanvas {
       // const now = Date.now();
 
       const canvas = new OffscreenCanvas(width, height);
-      const ctx = <OffscreenCanvasRenderingContext2D>canvas.getContext('2d');
-
-      if (idList.length === 0) {
-        return canvas;
-      }
+      const ctx = <OffscreenCanvasRenderingContext2D>canvas.getContext('2d', {
+        willReadFrequently: true,
+      });
 
       const sharedRect = shared.rect;
       const sharedText = shared.text;
@@ -91,12 +130,14 @@ export default class SubCanvas {
 
       const globalLineCaps = ['butt', 'round', 'square'];
 
-      // ctx.fillStyle = `rgba(${Math.floor(Math.random() * 256)},${Math.floor(
-      //   Math.random() * 256,
-      // )},${Math.floor(Math.random() * 256)})`;
-      // ctx.fillRect(0, 0, 10000, 10000);
+      ctx.fillStyle = `rgba(${Math.floor(Math.random() * 256)},${Math.floor(
+        Math.random() * 256,
+      )},${Math.floor(Math.random() * 256)})`;
+      ctx.fillRect(0, 0, 10000, 10000);
 
-      ctx.imageSmoothingEnabled = false;
+      // ctx.imageSmoothingEnabled = false;
+
+      // ctx.fillRect(0, 0, width, height);
 
       ctx.save();
 
@@ -213,18 +254,22 @@ export default class SubCanvas {
           const toX = sharedPath.toX[id];
           const toY = sharedPath.toY[id];
           const lineCap = sharedPath.lineCap[id] ?? 0;
-          const lineWidth = sharedPath.lineWidth[id] || 1;
           const lineDash = pathOtherList[id].lineDash || [];
           const strokeStyle = pathOtherList[id].strokeStyle || '';
           const alpha = sharedPath.alpha[id] ?? 1;
+          const lineWidth = sharedPath.lineWidth[id] || 1;
+          const keepWidth = sharedPath.keepWidth[id];
 
           ctx.save();
-          ctx.beginPath();
+
+          // line 单独处理是因为当lineWidth特别小的时候，画布不显示
+          ctx.translate(offsetX, offsetY);
+          ctx.scale(1 / realPieceToRenderingScale, 1 / realPieceToRenderingScale);
 
           ctx.globalAlpha = alpha;
           ctx.setLineDash(lineDash);
           ctx.strokeStyle = strokeStyle || '';
-          ctx.lineWidth = lineWidth;
+          ctx.lineWidth = keepWidth ? lineWidth : lineWidth * realPieceToRenderingScale;
           ctx.lineCap = <CanvasLineCap>globalLineCaps[lineCap];
 
           if (highlightList.path.has(id)) {
@@ -237,8 +282,15 @@ export default class SubCanvas {
             }
           }
 
-          ctx.moveTo(fromX, fromY);
-          ctx.lineTo(toX, toY);
+          ctx.beginPath();
+          ctx.moveTo(
+            (fromX - offsetX) * realPieceToRenderingScale,
+            (fromY - offsetY) * realPieceToRenderingScale,
+          );
+          ctx.lineTo(
+            (toX - offsetX) * realPieceToRenderingScale,
+            (toY - offsetY) * realPieceToRenderingScale,
+          );
           ctx.stroke();
           ctx.closePath();
 
@@ -256,19 +308,38 @@ export default class SubCanvas {
     };
   };
 
-  public init(): Promise<void> {
+  public init(sharedImageMap: Uint8Array): Promise<void> {
     return new Promise(async (resolve, reject) => {
       this.worker.onmessage = (e) => {
         if (e.data.type === 'init') {
           this.isInitialized = true;
           resolve();
+        } else if (e.data.type === 'render') {
+          const level = e.data.level;
+          const pieceIndex = e.data.pieceIndex;
+
+          this.geometryManager.setCanvasArea(level, pieceIndex, <ImageBitmap>e.data.img);
+          this.geometryManager.setCanvasArea(level, pieceIndex, 2);
+          this.isBusy = false;
+
+          // const imageBitmap = e.data.img;
+          // const canvas = new OffscreenCanvas(imageBitmap.width, imageBitmap.height);
+          // const ctx = canvas.getContext('2d');
+
+          // ctx?.drawImage(imageBitmap, 0, 0);
+
+          // const img = new Image();
+
+          // canvas.convertToBlob().then((data) => {
+          //   img.src = URL.createObjectURL(data);
+          // });
         }
       };
 
       this.worker.postMessage({
         type: 'init',
         shared: this.geometryManager.getSerializedData(),
-        imageMap: this.geometryManager.getImageMap(),
+        sharedImageMap,
       });
     });
   }
@@ -281,33 +352,30 @@ export default class SubCanvas {
     level: number,
     pieceIndex: number,
     realPieceToRenderingScale: number,
-  ): Promise<ImageBitmap | null> {
-    return new Promise(async (resolve, reject) => {
-      this.isBusy = true;
+  ): void {
+    this.isBusy = true;
 
-      this.worker.onmessage = (e) => {
-        if (e.data.type === 'render') {
-          this.isBusy = false;
-          this.setCharacter('');
-          resolve(e.data.img);
-        }
-      };
+    const areaInfo = this.geometryManager.getCanvasArea(level, pieceIndex);
 
-      this.worker.postMessage(
-        {
-          type: 'render',
-          width,
-          height,
-          realPieceToRenderingScale,
-          offsetX,
-          offsetY,
-          idList: this.geometryManager.getCanvasArea(level, pieceIndex).idList,
-          typeList: this.geometryManager.getCanvasArea(level, pieceIndex).typeList,
-          highlightList: this.geometryManager.getHighlightList(),
-        },
-        [],
-      );
-    });
+    if (areaInfo.idList.length > 0) {
+      this.worker.postMessage({
+        type: 'render',
+        width,
+        height,
+        realPieceToRenderingScale,
+        offsetX,
+        offsetY,
+        idList: areaInfo.idList,
+        typeList: areaInfo.typeList,
+        highlightList: this.geometryManager.getHighlightList(),
+        level,
+        pieceIndex,
+      });
+    } else {
+      this.geometryManager.setCanvasArea(level, pieceIndex, null);
+      this.geometryManager.setCanvasArea(level, pieceIndex, 2);
+      this.isBusy = false;
+    }
   }
 
   public getIsBusy(): boolean {
@@ -316,11 +384,6 @@ export default class SubCanvas {
 
   public getIsInitialized(): boolean {
     return this.isInitialized;
-  }
-
-  public setCharacter(str: string): string {
-    this.characterHash = str;
-    return this.characterHash;
   }
 
   public hasCharacter(str: string): boolean {

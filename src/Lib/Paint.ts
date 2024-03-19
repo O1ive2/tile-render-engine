@@ -32,22 +32,27 @@ export default class Paint {
       const mapInfo = autoIdMap.get(businessId);
       if (mapInfo) {
         const { id, type } = mapInfo;
-        this.geometryManager.getHighlightListByType(type).set(id, property);
+        if (property) {
+          this.geometryManager.getHighlightListByType(type).set(id, property);
+        } else {
+          this.geometryManager.getHighlightListByType(type).delete(id);
+        }
         this.canvasManager.updateCanvasByGeometryId(type, id);
       }
     }
   }
 
-  public loadImage(img: string, info: any): Promise<void> {
+  public loadImage(spriteInfo: {
+    [key: string]: {
+      width: number;
+      height: number;
+      imgBase64: string;
+      hoverImgBase64: string;
+      checkImgBase64: string;
+    };
+  }): Promise<void> {
     return new Promise((resolve, reject) => {
-      const imgObj = new Image();
-      imgObj.src = img;
-      imgObj.onload = () => {
-        this.geometryManager.loadImage(imgObj, info).then(resolve);
-      };
-      imgObj.onerror = () => {
-        reject();
-      };
+      this.geometryManager.loadImage(spriteInfo).then(resolve);
     });
   }
 

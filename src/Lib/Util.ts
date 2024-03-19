@@ -1,14 +1,14 @@
 const Util = {
   getLevelByScale(scale: number): number {
-    if (scale <= 1) {
+    if (scale < 2) {
       return 1;
     }
 
     let base = 1;
     let exponent = 0;
 
-    while (scale > base * 4) {
-      base *= 4;
+    while (scale > base * 2) {
+      base *= 2;
       exponent++;
     }
 

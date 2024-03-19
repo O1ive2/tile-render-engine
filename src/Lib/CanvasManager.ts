@@ -51,54 +51,10 @@ export default class CanvasManager {
 
   constructor(canvas: HTMLCanvasElement) {
     this.mainCanvas = canvas;
-    this.mainCtx = <CanvasRenderingContext2D>canvas.getContext('2d');
-    this.subCanvasList = Array.from({ length: maxThreads }, () => new SubCanvas());
-    this.on(
-      'zoom',
-      throttle(
-        (transform: any) => {
-          this.opLock.hover = true;
-          this.opLock.click = true;
-          this.updateTransform(transform);
-          this.render(true);
-        },
-        0,
-        {
-          leading: true,
-          trailing: false,
-        },
-      ),
-      () => {
-        setTimeout(() => {
-          this.opLock.hover = false;
-          this.opLock.click = false;
-        }, 0);
-      },
-    );
-
-    this.on(
-      'hover',
-      throttle(
-        ({ x, y }: { x: number; y: number }) => {
-          if (!this.opLock.hover) {
-            this.updateHover(x, y);
-          }
-        },
-        30,
-        {
-          leading: true,
-          trailing: false,
-        },
-      ),
-    );
-
-    this.on('click', ({ x, y }: { x: number; y: number }) => {
-      if (!this.opLock.click) {
-        this.updateCheck(x, y);
-      }
+    this.mainCtx = <CanvasRenderingContext2D>canvas.getContext('2d', {
+      willReadFrequently: true,
     });
-
-    this.render();
+    this.subCanvasList = Array.from({ length: maxThreads }, () => new SubCanvas());
   }
 
   public getSubCanvasList(): Array<SubCanvas> {
@@ -108,6 +64,11 @@ export default class CanvasManager {
   public updateCanvasByGeometryId(geometryType: number, id: number): void {
     const boundary = this.geometryManager.getBoundary();
     const imageMap = this.geometryManager.getImageMap();
+    const areaList = this.getPiecesIndex({
+      x: this.renderingOffsetX,
+      y: this.renderingOffsetY,
+      k: this.renderingScale,
+    });
 
     // let sharedItem = null;
     let borderWidth = 0;
@@ -178,6 +139,10 @@ export default class CanvasManager {
         }
       });
 
+      if (filteredIdList.length <= 0) {
+        continue;
+      }
+
       const globalLineCaps = ['butt', 'round', 'square'];
       const sideNumber = 1 << level;
       const indexX = index % sideNumber;
@@ -187,7 +152,14 @@ export default class CanvasManager {
       const realPieceToRenderingScale = sideNumber * this.renderingToRealScale;
 
       const offscreenCanvas = new OffscreenCanvas(bitmap.width, bitmap.height);
-      const ctx = <OffscreenCanvasRenderingContext2D>offscreenCanvas.getContext('2d');
+      const ctx = <OffscreenCanvasRenderingContext2D>offscreenCanvas.getContext('2d', {
+        willReadFrequently: true,
+      });
+
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+      ctx.clearRect(0, 0, bitmap.width, bitmap.height);
+
       ctx.drawImage(bitmap, 0, 0, bitmap.width, bitmap.height);
 
       ctx.save();
@@ -198,11 +170,10 @@ export default class CanvasManager {
         -(realY + boundary[2] + borderWidth / 2),
       );
 
-      ctx.clearRect(x, y, width + borderWidth, height + borderWidth);
-
       ctx.beginPath();
       ctx.rect(x, y, width + borderWidth, height + borderWidth);
       ctx.clip();
+      ctx.clearRect(x, y, width + borderWidth, height + borderWidth);
 
       for (let i = 0; i < filteredIdList.length; i++) {
         const id = filteredIdList[i];
@@ -220,6 +191,8 @@ export default class CanvasManager {
           const lineDash = rectItem.lineDash || [];
           const type = rectItem.type ?? 0;
           const alpha = rectItem.alpha ?? 1;
+
+          ctx.save();
 
           ctx.globalAlpha = alpha;
           ctx.setLineDash(lineDash);
@@ -251,6 +224,8 @@ export default class CanvasManager {
           }
 
           ctx.closePath();
+
+          ctx.restore();
         } else if (filteredType === 1) {
           const textItem = <TextProperty>originalTextData.get(id);
           const x = textItem.x;
@@ -262,6 +237,8 @@ export default class CanvasManager {
 
           // direction?: 'ltr' | 'rtl' | 'inherit';
 
+          ctx.save();
+
           ctx.globalAlpha = alpha;
           ctx.fillStyle = fillStyle || '#000';
 
@@ -269,6 +246,8 @@ export default class CanvasManager {
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           ctx.fillText(content, x, y);
+
+          ctx.restore();
         } else if (filteredType === 2) {
           const imageItem = <ImageProperty>originalImageData.get(id);
           const x = imageItem.x;
@@ -321,7 +300,10 @@ export default class CanvasManager {
           const toX = pathItem.toX;
           const toY = pathItem.toY;
           const lineCap = pathItem.lineCap ?? 0;
-          const lineWidth = pathItem.lineWidth || 1;
+          const lineWidth =
+            (pathItem.keepWidth
+              ? (pathItem?.lineWidth ?? 0) / realPieceToRenderingScale
+              : pathItem?.lineWidth ?? 0) || 1;
           const lineDash = pathItem.lineDash || [];
           const strokeStyle = pathItem.strokeStyle || '';
 
@@ -357,40 +339,20 @@ export default class CanvasManager {
 
       ctx.restore();
 
-      // const img = new Image();
-      // offscreenCanvas
-      //   .convertToBlob()
-      //   .then((data) => {
-      //     img.src = URL.createObjectURL(data);
-      //     img.onload = () => {
-      //       // console.log(chip, scale);
-      //     };
-      //   })
-      //   .catch((e) => {});
+      // if (this.level === level) {
+      //   const img = new Image();
+      //   offscreenCanvas
+      //     .convertToBlob()
+      //     .then((data) => {
+      //       img.src = URL.createObjectURL(data);
+      //       img.onload = () => {
+      //         // console.log(chip, scale);
+      //       };
+      //     })
+      //     .catch((e) => {});
+      // }
 
       this.geometryManager.setCanvasArea(level, index, offscreenCanvas);
-    }
-
-    this.renderList = [];
-
-    const areaList = this.getPiecesIndex({
-      x: this.renderingOffsetX,
-      y: this.renderingOffsetY,
-      k: this.renderingScale,
-    });
-
-    for (let pieceIndex of areaList) {
-      const indexX = pieceIndex % this.sideNumberOnLevel;
-      const indexY = Math.floor(pieceIndex / this.sideNumberOnLevel);
-      const renderingX = (indexX * this.initialRenderingWidth) / this.sideNumberOnLevel;
-      const renderingY = (indexY * this.initialRenderingHeight) / this.sideNumberOnLevel;
-      const bitmap = this.geometryManager.getCanvasAreaBitmap(this.level, pieceIndex);
-
-      this.renderList.push({
-        x: renderingX,
-        y: renderingY,
-        bitmap,
-      });
     }
   }
 
@@ -481,8 +443,8 @@ export default class CanvasManager {
 
       if (!(pointerX >= minX && pointerX <= maxX && pointerY >= minY && pointerY <= maxY)) {
         const currentGeometry = this.geometryManager.getOriginalDataByType(type).get(id);
-        currentGeometry.hoverOut?.();
         this.hoverList.delete(key);
+        currentGeometry.hoverOut?.();
       }
     }
 
@@ -566,7 +528,7 @@ export default class CanvasManager {
     }
   }
 
-  public updateCheck(pointerX: number, pointerY: number) {
+  public updateCheck(pointerX: number, pointerY: number, checkType = 'click') {
     const boundary = this.geometryManager.getBoundary();
 
     const totalOffsetX =
@@ -669,7 +631,7 @@ export default class CanvasManager {
 
       const currentGeometry = <any>originalData?.get(id);
 
-      if (!currentGeometry?.click) {
+      if (!currentGeometry?.[checkType]) {
         continue;
       }
 
@@ -682,8 +644,7 @@ export default class CanvasManager {
         pointerY >= initialY &&
         pointerY <= initialY + (sharedItemHeight + borderWidth) * scale
       ) {
-        currentGeometry.click();
-
+        currentGeometry[checkType]();
         this.updateCanvasByGeometryId(type, id);
 
         break;
@@ -695,42 +656,28 @@ export default class CanvasManager {
     this.renderingOffsetX = transform.x;
     this.renderingOffsetY = transform.y;
     this.renderingScale = transform.k;
-    this.level = Util.getLevelByScale(transform.k);
+    const level = (this.level = Util.getLevelByScale(transform.k));
     const areaList = this.getPiecesIndex(transform);
-
-    this.renderList = [];
+    const sideNumberOnLevel = 1 << level;
 
     for (let pieceIndex of areaList) {
-      const bitmap = this.geometryManager.getCanvasAreaBitmap(this.level, pieceIndex);
-      const indexX = pieceIndex % this.sideNumberOnLevel;
-      const indexY = Math.floor(pieceIndex / this.sideNumberOnLevel);
-      const renderingX = (indexX * this.initialRenderingWidth) / this.sideNumberOnLevel;
-      const renderingY = (indexY * this.initialRenderingHeight) / this.sideNumberOnLevel;
-      const realX = (indexX * this.realWidth) / this.sideNumberOnLevel;
-      const realY = (indexY * this.realHeight) / this.sideNumberOnLevel;
-      if (bitmap) {
-        this.renderList.push({
-          x: renderingX,
-          y: renderingY,
-          bitmap,
-        });
-      } else {
+      this.geometryManager.fillCanvasArea(level, pieceIndex);
+      const state = this.geometryManager.getCanvasAreaState(level, pieceIndex);
+      const indexX = pieceIndex % sideNumberOnLevel;
+      const indexY = Math.floor(pieceIndex / sideNumberOnLevel);
+      const realX = (indexX * this.realWidth) / sideNumberOnLevel;
+      const realY = (indexY * this.realHeight) / sideNumberOnLevel;
+
+      if (state === 0) {
+        this.geometryManager.setCanvasArea(level, pieceIndex, 1);
         this.paintPartCanvas(
+          level,
           realX,
           realY,
-          this.realWidth / this.sideNumberOnLevel,
-          this.realHeight / this.sideNumberOnLevel,
+          this.realWidth / sideNumberOnLevel,
+          this.realHeight / sideNumberOnLevel,
           pieceIndex,
-        )
-          .then((bitmap: ImageBitmap | null) => {
-            this.renderList.push({
-              x: renderingX,
-              y: renderingY,
-              bitmap,
-            });
-            this.geometryManager.setCanvasArea(this.level, pieceIndex, <ImageBitmap>bitmap);
-          })
-          .catch((e) => {});
+        );
       }
     }
   }
@@ -750,12 +697,12 @@ export default class CanvasManager {
   public on(event: string, callback: any, callbackEnd?: any): void {
     const canvas = this.mainCanvas;
     if (event === 'zoom') {
-      let k = 1;
-      let x = 0;
-      let y = 0;
+      let k = this.renderingScale;
+      let x = this.renderingOffsetX;
+      let y = this.renderingOffsetY;
       let draggable = false;
-      let startX = 0;
-      let startY = 0;
+      let startX = this.renderingOffsetX;
+      let startY = this.renderingOffsetY;
       canvas.addEventListener(
         'pointerdown',
         (event: PointerEvent) => {
@@ -798,16 +745,16 @@ export default class CanvasManager {
         'wheel',
         (event: WheelEvent) => {
           if (!draggable) {
-            const perScale = 0.2 * k;
+            const perScale = 1.2;
             if (event.deltaY < 0) {
-              x = event.offsetX - (event.offsetX - x) * (1 + perScale / k);
-              y = event.offsetY - (event.offsetY - y) * (1 + perScale / k);
-              k += perScale;
+              x = event.offsetX - (event.offsetX - x) * perScale;
+              y = event.offsetY - (event.offsetY - y) * perScale;
+              k *= perScale;
             } else {
               if (k > 0.5) {
-                x = event.offsetX - (event.offsetX - x) * (1 - perScale / k);
-                y = event.offsetY - (event.offsetY - y) * (1 - perScale / k);
-                k -= perScale;
+                x = event.offsetX - (event.offsetX - x) / perScale;
+                y = event.offsetY - (event.offsetY - y) / perScale;
+                k /= perScale;
               }
             }
             callback({ k, x, y });
@@ -828,6 +775,24 @@ export default class CanvasManager {
       canvas.addEventListener(
         'click',
         (event: MouseEvent) => {
+          callback({ x: event.offsetX, y: event.offsetY });
+        },
+        false,
+      );
+    } else if (event === 'rclick') {
+      canvas.addEventListener(
+        'contextmenu',
+        (event: MouseEvent) => {
+          event.preventDefault();
+          callback({ x: event.offsetX, y: event.offsetY });
+        },
+        false,
+      );
+    } else if (event === 'dbclick') {
+      canvas.addEventListener(
+        'dblclick',
+        (event: MouseEvent) => {
+          event.preventDefault();
           callback({ x: event.offsetX, y: event.offsetY });
         },
         false,
@@ -857,6 +822,72 @@ export default class CanvasManager {
       x: 0,
       y: 0,
     });
+
+    let lockTimer: NodeJS.Timeout | null = null;
+
+    this.on(
+      'zoom',
+      throttle(
+        (transform: any) => {
+          lockTimer && clearTimeout(lockTimer);
+          this.opLock.hover = true;
+          this.opLock.click = true;
+          this.updateTransform(transform);
+          this.render(true);
+        },
+        0,
+        {
+          leading: true,
+          trailing: false,
+        },
+      ),
+      () => {
+        lockTimer = setTimeout(() => {
+          this.opLock.hover = false;
+          this.opLock.click = false;
+        }, 0);
+      },
+    );
+
+    this.on(
+      'hover',
+      throttle(
+        ({ x, y }: { x: number; y: number }) => {
+          if (!this.opLock.hover) {
+            // const hoverNow = Date.now();
+            // this.updateHover(x, y);
+            // if (Date.now() - hoverNow > 2) {
+            //   console.log(Date.now() - hoverNow + 'ms');
+            // }
+          }
+        },
+        30,
+        {
+          leading: true,
+          trailing: false,
+        },
+      ),
+    );
+
+    this.on('click', ({ x, y }: { x: number; y: number }) => {
+      if (!this.opLock.click) {
+        this.updateCheck(x, y, 'click');
+      }
+    });
+
+    this.on('rclick', ({ x, y }: { x: number; y: number }) => {
+      if (!this.opLock.click) {
+        this.updateCheck(x, y, 'rclick');
+      }
+    });
+
+    this.on('dbclick', ({ x, y }: { x: number; y: number }) => {
+      if (!this.opLock.click) {
+        this.updateCheck(x, y, 'dbclick');
+      }
+    });
+
+    this.render();
   }
 
   private getPiecesIndex(transform: any): Array<number> {
@@ -957,21 +988,19 @@ export default class CanvasManager {
       }
     }
 
-    let indexStartX = Math.floor(
-      Math.abs(snapshot.minX / (renderingWidth / this.sideNumberOnLevel)),
-    );
-    let indexEndX = Math.ceil(Math.abs(snapshot.maxX / (renderingWidth / this.sideNumberOnLevel)));
-    let indexStartY = Math.floor(
-      Math.abs(snapshot.minY / (renderingHeight / this.sideNumberOnLevel)),
-    );
-    let indexEndY = Math.ceil(Math.abs(snapshot.maxY / (renderingHeight / this.sideNumberOnLevel)));
-    indexEndX = indexEndX > this.sideNumberOnLevel ? this.sideNumberOnLevel : indexEndX;
-    indexEndY = indexEndY > this.sideNumberOnLevel ? this.sideNumberOnLevel : indexEndY;
+    const sideNumber = this.sideNumberOnLevel;
+
+    let indexStartX = Math.floor(Math.abs(snapshot.minX / (renderingWidth / sideNumber)));
+    let indexEndX = Math.ceil(Math.abs(snapshot.maxX / (renderingWidth / sideNumber)));
+    let indexStartY = Math.floor(Math.abs(snapshot.minY / (renderingHeight / sideNumber)));
+    let indexEndY = Math.ceil(Math.abs(snapshot.maxY / (renderingHeight / sideNumber)));
+    indexEndX = indexEndX > sideNumber ? sideNumber : indexEndX;
+    indexEndY = indexEndY > sideNumber ? sideNumber : indexEndY;
 
     const areaList = [];
     for (let i = indexStartX; i < indexEndX; i++) {
       for (let j = indexStartY; j < indexEndY; j++) {
-        areaList.push(i + j * this.sideNumberOnLevel);
+        areaList.push(i + j * sideNumber);
       }
     }
 
@@ -979,79 +1008,88 @@ export default class CanvasManager {
   }
 
   private paintPartCanvas(
+    level: number,
     x: number,
     y: number,
     width: number,
     height: number,
     pieceIndex: number,
-  ): Promise<ImageBitmap | null> {
-    const realPieceToRenderingScale = this.sideNumberOnLevel * this.renderingToRealScale;
+  ): void {
+    const sideNumber = 1 << level;
+    const realPieceToRenderingScale = sideNumber * this.renderingToRealScale;
     const paintWidth = width * realPieceToRenderingScale;
     const paintHeight = height * realPieceToRenderingScale;
-    const characterHash = `${this.level}@${pieceIndex}`;
 
-    return new Promise((resolve, reject) => {
-      // filter conflicts
-      if (this.subCanvasList.some((item) => item.hasCharacter(characterHash))) {
-        return reject();
-      }
+    const subCanvas = this.subCanvasList.find(
+      (item) => item.getIsInitialized() && !item.getIsBusy(),
+    );
 
-      const subCanvas = this.subCanvasList.find(
-        (item) => item.getIsInitialized() && !item.getIsBusy(),
-      );
-
+    if (subCanvas) {
       const boundary = this.geometryManager.getBoundary();
-
-      if (subCanvas) {
-        subCanvas.setCharacter(characterHash);
-        subCanvas
-          .render(
-            paintWidth,
-            paintHeight,
-            x + boundary[0],
-            y + boundary[2],
-            this.level,
-            pieceIndex,
-            realPieceToRenderingScale,
-          )
-          .then((bitmap: ImageBitmap | null) => {
-            resolve(bitmap);
-          });
-      } else {
-        // todo waiting for idle thread
-      }
-    });
+      subCanvas.render(
+        paintWidth,
+        paintHeight,
+        x + boundary[0],
+        y + boundary[2],
+        level,
+        pieceIndex,
+        realPieceToRenderingScale,
+      );
+    } else {
+      setTimeout(() => {
+        // todo check index
+        if (this.level === level) {
+          this.paintPartCanvas(level, x, y, width, height, pieceIndex);
+        } else {
+          this.geometryManager.setCanvasArea(level, pieceIndex, 0);
+        }
+      }, 0);
+    }
   }
 
   private render(once = false): void {
     const ctx = this.mainCtx;
 
+    const renderingOffsetX = this.renderingOffsetX;
+    const renderingOffsetY = this.renderingOffsetY;
+    const renderingScale = this.renderingScale;
+    const level = this.level;
+    const sideNumber = this.sideNumberOnLevel;
+
+    const areaList = this.getPiecesIndex({
+      k: renderingScale,
+      x: renderingOffsetX,
+      y: renderingOffsetY,
+    });
+
     ctx.save();
-    // ctx.imageSmoothingEnabled = false;
+
     ctx.clearRect(0, 0, this.mainCanvas.width, this.mainCanvas.height);
 
-    ctx.translate(this.renderingOffsetX, this.renderingOffsetY);
-    ctx.scale(this.renderingScale, this.renderingScale);
+    for (let pieceIndex of areaList) {
+      const bitmap = this.geometryManager.getCanvasAreaBitmap(level, pieceIndex);
+      const state = this.geometryManager.getCanvasAreaState(level, pieceIndex);
+      const indexX = pieceIndex % sideNumber;
+      const indexY = Math.floor(pieceIndex / sideNumber);
+      const renderingX = (indexX * this.initialRenderingWidth) / sideNumber;
+      const renderingY = (indexY * this.initialRenderingHeight) / sideNumber;
 
-    ctx.translate(
-      (this.mainCanvas.width - this.initialRenderingWidth) / 2,
-      (this.mainCanvas.height - this.initialRenderingHeight) / 2,
-    );
-
-    for (let i = 0; i < this.renderList.length; i++) {
-      let renderItem = this.renderList[i];
-
-      this.mainCtx.drawImage(
-        renderItem.bitmap,
-        0,
-        0,
-        renderItem.bitmap.width,
-        renderItem.bitmap.height,
-        renderItem.x,
-        renderItem.y,
-        this.initialRenderingWidth / this.sideNumberOnLevel,
-        this.initialRenderingHeight / this.sideNumberOnLevel,
-      );
+      if (state === 2 && bitmap) {
+        this.mainCtx.drawImage(
+          bitmap,
+          0,
+          0,
+          bitmap.width,
+          bitmap.height,
+          (renderingX + (this.mainCanvas.width - this.initialRenderingWidth) / 2) * renderingScale +
+            renderingOffsetX,
+          (renderingY + (this.mainCanvas.height - this.initialRenderingHeight) / 2) *
+            renderingScale +
+            renderingOffsetY,
+          (this.initialRenderingWidth / sideNumber) * renderingScale,
+          (this.initialRenderingHeight / sideNumber) * renderingScale,
+        );
+      }
     }
 
     ctx.restore();

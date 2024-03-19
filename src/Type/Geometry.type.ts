@@ -31,7 +31,8 @@ export type RectProperty = {
   hover?: Function;
   hoverOut?: Function;
   click?: Function;
-  state?: CommonState;
+  dbclick?: Function;
+  rclick?: Function;
   zIndex?: number;
   propertyType?: 0;
 };
@@ -49,7 +50,6 @@ export type TextProperty = {
   textBaseline?: 'top' | 'hanging' | 'middle' | 'alphabetic' | 'ideographic' | 'bottom';
   direction?: 'ltr' | 'rtl' | 'inherit';
   alpha?: number;
-  state?: CommonState;
   zIndex?: number;
   propertyType?: 1;
 };
@@ -68,7 +68,8 @@ export type ImageProperty = {
   hover?: Function;
   hoverOut?: Function;
   click?: Function;
-  state?: CommonState;
+  dbclick?: Function;
+  rclick?: Function;
 };
 
 export type PathProperty = {
@@ -78,6 +79,7 @@ export type PathProperty = {
   toX: number;
   toY: number;
   strokeStyle?: string;
+  keepWidth?: 0|1;
   lineWidth?: number;
   lineDash?: Array<number>;
   lineCap?: LineCapType;
@@ -87,7 +89,8 @@ export type PathProperty = {
   hover?: Function;
   hoverOut?: Function;
   click?: Function;
-  state?: CommonState;
+  dbclick?: Function;
+  rclick?: Function;
   x?: number;
   y?: number;
   width?: number;

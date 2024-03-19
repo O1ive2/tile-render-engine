@@ -6,3 +6,5 @@
 4. smaller scale not clearly
 5. functional lack
 6. move smoothly (OK)
+7. scroll times make op stop
+8. scroll deep make canvas chaos
