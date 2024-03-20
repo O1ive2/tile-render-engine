@@ -7,8 +7,11 @@ export default class SubCanvas {
   private geometryManager: GeometryManager = GeometryManager.from();
   private characterHash: string = '';
   private canvasFlag: string = Math.random().toString();
+  private canvas: HTMLCanvasElement;
 
   constructor() {
+    this.canvas = document.createElement('canvas');
+
     this.blob_str = new Blob(
       [
         `
@@ -18,11 +21,24 @@ export default class SubCanvas {
         let shared = null;
         let imageMap = new Map();
 
+        let rectOtherList = null;
+        let textOtherList = null;
+        let pathOtherList = null;
+
         self.onmessage = async (e) => {
           if(e.data.type === 'init') {
             shared = e.data.shared;
             const imageMapStr = e.data.sharedImageMap;
+
             const textDecoder = new TextDecoder();
+
+            rectOtherList = JSON.parse(textDecoder.decode(new Uint8Array(shared.rect.other)));
+            textOtherList = JSON.parse(textDecoder.decode(new Uint8Array(shared.text.other)));
+            pathOtherList = JSON.parse(textDecoder.decode(new Uint8Array(shared.path.other)));
+      
+
+
+
             const sharedImageMapData = new Uint8Array(imageMapStr);
             const sharedImageMap = JSON.parse(textDecoder.decode(sharedImageMapData));
             for(let key in sharedImageMap){
@@ -40,6 +56,7 @@ export default class SubCanvas {
               type: 'init'
             });
           } else if(e.data.type === 'render') {
+
             const width = e.data.width;
             const height = e.data.height;
             const offsetX = e.data.offsetX;
@@ -52,11 +69,18 @@ export default class SubCanvas {
             const level = e.data.level;
             const pieceIndex = e.data.pieceIndex;
 
-            const canvas = render(width,height,shared,idList,typeList,highlightList,imageMap,offsetX,offsetY,realPieceToRenderingScale);
+            canvas = e.data.canvas;
+            canvas.width = width*2;
+            canvas.height = height*2;
+            
+            ctx = canvas.getContext('2d',{
+              willReadFrequently: true,
+            });
+
+            render(ctx,width,height,shared,idList,typeList,highlightList,imageMap,offsetX,offsetY,realPieceToRenderingScale,rectOtherList,textOtherList,pathOtherList);
 
             self.postMessage({
               type: "render",
-              img: canvas?.transferToImageBitmap(),
               level,
               pieceIndex,
             });
@@ -96,6 +120,7 @@ export default class SubCanvas {
 
   public retRender = () => {
     return (
+      ctx: OffscreenCanvasRenderingContext2D,
       width: number,
       height: number,
       shared: any,
@@ -106,28 +131,16 @@ export default class SubCanvas {
       offsetX: number,
       offsetY: number,
       realPieceToRenderingScale: number,
+      rectOtherList,
+      textOtherList,
+      pathOtherList,
     ): OffscreenCanvas | void => {
       // const now = Date.now();
-      const canvas = new OffscreenCanvas(width * 2, height * 2);
-      const ctx = <OffscreenCanvasRenderingContext2D>canvas.getContext('2d', {
-        willReadFrequently: true,
-      });
 
       const sharedRect = shared.rect;
       const sharedText = shared.text;
       const sharedImage = shared.image;
       const sharedPath = shared.path;
-
-      const textDecoder = new TextDecoder();
-
-      const retrievedRectData = new Uint8Array(sharedRect.other);
-      const rectOtherList = JSON.parse(textDecoder.decode(retrievedRectData));
-
-      const retrievedTextData = new Uint8Array(sharedText.other);
-      const textOtherList = JSON.parse(textDecoder.decode(retrievedTextData));
-
-      const retrievedPathData = new Uint8Array(sharedPath.other);
-      const pathOtherList = JSON.parse(textDecoder.decode(retrievedPathData));
 
       const globalLineCaps = ['butt', 'round', 'square'];
 
@@ -301,8 +314,6 @@ export default class SubCanvas {
 
       ctx.restore();
 
-      return canvas;
-
       // console.log(Date.now() - now + 'ms');
 
       // console.log('------------');
@@ -319,7 +330,6 @@ export default class SubCanvas {
           const level = e.data.level;
           const pieceIndex = e.data.pieceIndex;
 
-          this.geometryManager.setCanvasArea(level, pieceIndex, <ImageBitmap>e.data.img);
           this.geometryManager.setCanvasArea(level, pieceIndex, 2);
           this.isBusy = false;
 
@@ -337,11 +347,17 @@ export default class SubCanvas {
         }
       };
 
-      this.worker.postMessage({
-        type: 'init',
-        shared: this.geometryManager.getSerializedData(),
-        sharedImageMap,
-      });
+      const offscreenCanvas = this.canvas.transferControlToOffscreen();
+
+      this.worker.postMessage(
+        {
+          type: 'init',
+          canvas: offscreenCanvas,
+          shared: this.geometryManager.getSerializedData(),
+          sharedImageMap,
+        },
+        [offscreenCanvas],
+      );
     });
   }
 
@@ -361,19 +377,27 @@ export default class SubCanvas {
     const areaInfo = this.geometryManager.getCanvasArea(level, pieceIndex);
 
     if (areaInfo.idList.length > 0) {
-      this.worker.postMessage({
-        type: 'render',
-        width,
-        height,
-        realPieceToRenderingScale,
-        offsetX,
-        offsetY,
-        idList: areaInfo.idList,
-        typeList: areaInfo.typeList,
-        highlightList: this.geometryManager.getHighlightList(),
-        level,
-        pieceIndex,
-      });
+      const canvas = document.createElement('canvas');
+      const offscreenCanvas = canvas.transferControlToOffscreen();
+      this.geometryManager.setCanvasArea(level, pieceIndex, canvas);
+
+      this.worker.postMessage(
+        {
+          type: 'render',
+          width,
+          height,
+          realPieceToRenderingScale,
+          offsetX,
+          offsetY,
+          idList: areaInfo.idList,
+          typeList: areaInfo.typeList,
+          highlightList: this.geometryManager.getHighlightList(),
+          level,
+          pieceIndex,
+          canvas: offscreenCanvas,
+        },
+        [offscreenCanvas],
+      );
     } else {
       this.geometryManager.setCanvasArea(level, pieceIndex, null);
       this.geometryManager.setCanvasArea(level, pieceIndex, 2);

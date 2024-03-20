@@ -20,7 +20,7 @@ export default class GeometryManager {
   private canvasArea: Array<
     Array<{
       state: 0 | 1 | 2; // 0未渲染 1待渲染 2已渲染
-      bitmap: ImageBitmap | OffscreenCanvas | null;
+      bitmap: ImageBitmap | OffscreenCanvas | HTMLCanvasElement | null;
       rendering: {
         typeList: Uint8Array;
         idList: Uint32Array;
@@ -518,8 +518,16 @@ export default class GeometryManager {
     return this.boundary;
   }
 
-  public setCanvasArea(level: number, index: number, canvas: OffscreenCanvas): void;
-  public setCanvasArea(level: number, index: number, bitmap: ImageBitmap | null): void;
+  public setCanvasArea(
+    level: number,
+    index: number,
+    canvas: OffscreenCanvas | HTMLCanvasElement,
+  ): void;
+  public setCanvasArea(
+    level: number,
+    index: number,
+    bitmap: ImageBitmap | HTMLCanvasElement | null,
+  ): void;
   public setCanvasArea(level: number, index: number, rect: RectProperty): void;
   public setCanvasArea(level: number, index: number, state: number): void;
   public setCanvasArea(
@@ -529,7 +537,7 @@ export default class GeometryManager {
   ): void;
   public setCanvasArea(level: number, index: number, value: any): void {
     this.fillCanvasArea(level, index);
-    if (value instanceof ImageBitmap) {
+    if (value instanceof ImageBitmap || value instanceof HTMLCanvasElement) {
       this.canvasArea[level][index].bitmap = value;
     } else if (value instanceof OffscreenCanvas) {
       this.canvasArea[level][index].bitmap = value;
