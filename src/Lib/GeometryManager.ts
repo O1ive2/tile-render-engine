@@ -163,7 +163,7 @@ export default class GeometryManager {
   }
 
   private setAreaByLevel = (level: number) => {
-    const pieceNumber = 4 ** level;
+    const pieceNumber = (1 << (2 * level - 1)) ** 2;
     this.canvasArea[level] = Array.from({ length: pieceNumber }, () => ({
       state: 0,
       bitmap: null,
@@ -178,7 +178,7 @@ export default class GeometryManager {
   };
 
   public setAreaPiece = (level: number, pieceIndex: number) => {
-    const sideNumber = 1 << level;
+    const sideNumber = 1 << (level * 2 - 1);
 
     const offsetX = this.boundary[0];
     const offsetY = this.boundary[2];
@@ -225,10 +225,10 @@ export default class GeometryManager {
               } else if (item.propertyType === 3) {
                 if (item.keepWidth) {
                   if (selfHeight > selfWidth) {
-                    selfWidth = item.width / sideNumber;
+                    selfWidth = item.width / sideNumber / 4;
                     selfOffsetX = -selfWidth / 2 - item.x + item.fromX;
                   } else {
-                    selfHeight = item.height / sideNumber;
+                    selfHeight = item.height / sideNumber / 4;
                     selfOffsetY = -selfHeight / 2 - item.y + item.fromY;
                   }
                 }
@@ -264,8 +264,8 @@ export default class GeometryManager {
     } else {
       // get parent level index location
       const parentIndex = Math.abs(
-        Math.ceil((pieceIndexX + 1) / 2 - 1) +
-          Math.ceil((pieceIndexY + 1) / 2 - 1) * (sideNumber / 2),
+        Math.ceil((pieceIndexX + 1) / 4 - 1) +
+          Math.ceil((pieceIndexY + 1) / 4 - 1) * (sideNumber / 4),
       );
 
       this.fillCanvasArea(level - 1, parentIndex);
@@ -310,10 +310,10 @@ export default class GeometryManager {
 
           if (item.keepWidth) {
             if (selfHeight > selfWidth) {
-              selfWidth = selfWidth / sideNumber;
+              selfWidth = selfWidth / sideNumber / 4;
               selfOffsetX = -selfWidth / 2 - (item.x ?? 0) + item.fromX;
             } else {
-              selfHeight = selfHeight / sideNumber;
+              selfHeight = selfHeight / sideNumber / 4;
               selfOffsetY = -selfHeight / 2 - (item.y ?? 0) + item.fromY;
             }
           }

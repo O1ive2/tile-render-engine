@@ -42,7 +42,7 @@ export default class CanvasManager {
   }
 
   get sideNumberOnLevel() {
-    return 1 << this.level;
+    return 1 << (this.level * 2 - 1);
   }
 
   private geometryManager: GeometryManager = GeometryManager.from();
@@ -144,7 +144,7 @@ export default class CanvasManager {
       }
 
       const globalLineCaps = ['butt', 'round', 'square'];
-      const sideNumber = 1 << level;
+      const sideNumber = this.sideNumberOnLevel;
       const indexX = index % sideNumber;
       const indexY = Math.floor(index / sideNumber);
       const realX = (indexX * this.realWidth) / sideNumber;
@@ -371,7 +371,7 @@ export default class CanvasManager {
 
     // deeper level less query
     const level = this.level > 3 ? this.level : 3;
-    const sideNumber = 1 << level;
+    const sideNumber = this.sideNumberOnLevel;
 
     const pieceIndexX = Math.floor(
       ((pointerX - totalOffsetX) / (boundary[4] * scale)) * sideNumber,
@@ -543,7 +543,7 @@ export default class CanvasManager {
 
     // deeper level less query
     const level = this.level > 3 ? this.level : 3;
-    const sideNumber = 1 << level;
+    const sideNumber = this.sideNumberOnLevel;
 
     const pieceIndexX = Math.floor(
       ((pointerX - totalOffsetX) / (boundary[4] * scale)) * sideNumber,
@@ -658,7 +658,7 @@ export default class CanvasManager {
     this.renderingScale = transform.k;
     const level = (this.level = Util.getLevelByScale(transform.k));
     const areaList = this.getPiecesIndex(transform);
-    const sideNumberOnLevel = 1 << level;
+    const sideNumberOnLevel = this.sideNumberOnLevel;
 
     for (let pieceIndex of areaList) {
       this.geometryManager.fillCanvasArea(level, pieceIndex);
@@ -1015,7 +1015,7 @@ export default class CanvasManager {
     height: number,
     pieceIndex: number,
   ): void {
-    const sideNumber = 1 << level;
+    const sideNumber = this.sideNumberOnLevel;
     const realPieceToRenderingScale = sideNumber * this.renderingToRealScale;
     const paintWidth = width * realPieceToRenderingScale;
     const paintHeight = height * realPieceToRenderingScale;

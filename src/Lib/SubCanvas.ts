@@ -6,6 +6,7 @@ export default class SubCanvas {
   private worker: Worker;
   private geometryManager: GeometryManager = GeometryManager.from();
   private characterHash: string = '';
+  private canvasFlag: string = Math.random().toString();
 
   constructor() {
     this.blob_str = new Blob(
@@ -57,8 +58,9 @@ export default class SubCanvas {
               type: "render",
               img: canvas?.transferToImageBitmap(),
               level,
-              pieceIndex
+              pieceIndex,
             });
+            
           }
           
         };
@@ -106,8 +108,7 @@ export default class SubCanvas {
       realPieceToRenderingScale: number,
     ): OffscreenCanvas | void => {
       // const now = Date.now();
-
-      const canvas = new OffscreenCanvas(width, height);
+      const canvas = new OffscreenCanvas(width * 2, height * 2);
       const ctx = <OffscreenCanvasRenderingContext2D>canvas.getContext('2d', {
         willReadFrequently: true,
       });
@@ -130,10 +131,10 @@ export default class SubCanvas {
 
       const globalLineCaps = ['butt', 'round', 'square'];
 
-      ctx.fillStyle = `rgba(${Math.floor(Math.random() * 256)},${Math.floor(
-        Math.random() * 256,
-      )},${Math.floor(Math.random() * 256)})`;
-      ctx.fillRect(0, 0, 10000, 10000);
+      // ctx.fillStyle = `rgba(${Math.floor(Math.random() * 256)},${Math.floor(
+      //   Math.random() * 256,
+      // )},${Math.floor(Math.random() * 256)})`;
+      // ctx.fillRect(0, 0, 10000, 10000);
 
       // ctx.imageSmoothingEnabled = false;
 
@@ -141,7 +142,7 @@ export default class SubCanvas {
 
       ctx.save();
 
-      ctx.scale(realPieceToRenderingScale, realPieceToRenderingScale);
+      ctx.scale(realPieceToRenderingScale * 2, realPieceToRenderingScale * 2);
       ctx.translate(-offsetX, -offsetY);
 
       for (let i = 0; i < idList.length; i++) {
@@ -264,12 +265,12 @@ export default class SubCanvas {
 
           // line 单独处理是因为当lineWidth特别小的时候，画布不显示
           ctx.translate(offsetX, offsetY);
-          ctx.scale(1 / realPieceToRenderingScale, 1 / realPieceToRenderingScale);
+          ctx.scale(1 / realPieceToRenderingScale / 2, 1 / realPieceToRenderingScale / 2);
 
           ctx.globalAlpha = alpha;
           ctx.setLineDash(lineDash);
           ctx.strokeStyle = strokeStyle || '';
-          ctx.lineWidth = keepWidth ? lineWidth : lineWidth * realPieceToRenderingScale;
+          ctx.lineWidth = keepWidth ? lineWidth : lineWidth * realPieceToRenderingScale * 2;
           ctx.lineCap = <CanvasLineCap>globalLineCaps[lineCap];
 
           if (highlightList.path.has(id)) {
@@ -284,12 +285,12 @@ export default class SubCanvas {
 
           ctx.beginPath();
           ctx.moveTo(
-            (fromX - offsetX) * realPieceToRenderingScale,
-            (fromY - offsetY) * realPieceToRenderingScale,
+            (fromX - offsetX) * realPieceToRenderingScale * 2,
+            (fromY - offsetY) * realPieceToRenderingScale * 2,
           );
           ctx.lineTo(
-            (toX - offsetX) * realPieceToRenderingScale,
-            (toY - offsetY) * realPieceToRenderingScale,
+            (toX - offsetX) * realPieceToRenderingScale * 2,
+            (toY - offsetY) * realPieceToRenderingScale * 2,
           );
           ctx.stroke();
           ctx.closePath();
@@ -353,6 +354,8 @@ export default class SubCanvas {
     pieceIndex: number,
     realPieceToRenderingScale: number,
   ): void {
+    // console.time(this.canvasFlag);
+
     this.isBusy = true;
 
     const areaInfo = this.geometryManager.getCanvasArea(level, pieceIndex);
