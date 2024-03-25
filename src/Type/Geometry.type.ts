@@ -1,3 +1,10 @@
+export enum GeometryType {
+  rect,
+  text,
+  image,
+  path,
+}
+
 export enum RectType {
   fill,
   stroke,
@@ -17,7 +24,7 @@ export enum CommonState {
 }
 
 export type RectProperty = {
-  id?: number|string;
+  id?: number | string;
   x: number;
   y: number;
   width: number;
@@ -34,11 +41,11 @@ export type RectProperty = {
   dbclick?: Function;
   rclick?: Function;
   zIndex?: number;
-  propertyType?: 0;
+  propertyType?: GeometryType.rect;
 };
 
 export type TextProperty = {
-  id?: number|string;
+  id?: number | string;
   x: number;
   y: number;
   content: string;
@@ -51,11 +58,11 @@ export type TextProperty = {
   direction?: 'ltr' | 'rtl' | 'inherit';
   alpha?: number;
   zIndex?: number;
-  propertyType?: 1;
+  propertyType?: GeometryType.text;
 };
 
 export type ImageProperty = {
-  id?: number|string;
+  id?: number | string;
   x: number;
   y: number;
   width?: number;
@@ -64,7 +71,7 @@ export type ImageProperty = {
   imageIndex?: number;
   alpha?: number;
   zIndex?: number;
-  propertyType?: 2;
+  propertyType?: GeometryType.image;
   hover?: Function;
   hoverOut?: Function;
   click?: Function;
@@ -73,19 +80,19 @@ export type ImageProperty = {
 };
 
 export type PathProperty = {
-  id?: number|string;
+  id?: number | string;
   fromX: number;
   fromY: number;
   toX: number;
   toY: number;
   strokeStyle?: string;
-  keepWidth?: 0|1;
+  keepWidth?: 0 | 1;
   lineWidth?: number;
   lineDash?: Array<number>;
   lineCap?: LineCapType;
   alpha?: number;
   zIndex?: number;
-  propertyType?: 3;
+  propertyType?: GeometryType.path;
   hover?: Function;
   hoverOut?: Function;
   click?: Function;

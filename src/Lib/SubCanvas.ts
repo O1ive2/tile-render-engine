@@ -1,17 +1,15 @@
 import GeometryManager from './GeometryManager';
+import { RenderingRegion, RenderingState } from './Region';
 export default class SubCanvas {
+  private region: RenderingRegion = RenderingRegion.from();
+  private geometryManager: GeometryManager = GeometryManager.from();
+
   private isBusy = false;
   private isInitialized = false;
   private blob_str: Blob;
   private worker: Worker;
-  private geometryManager: GeometryManager = GeometryManager.from();
-  private characterHash: string = '';
-  private canvasFlag: string = Math.random().toString();
-  private canvas: HTMLCanvasElement;
 
   constructor() {
-    this.canvas = document.createElement('canvas');
-
     this.blob_str = new Blob(
       [
         `
@@ -37,10 +35,9 @@ export default class SubCanvas {
             pathOtherList = JSON.parse(textDecoder.decode(new Uint8Array(shared.path.other)));
       
 
-
-
             const sharedImageMapData = new Uint8Array(imageMapStr);
             const sharedImageMap = JSON.parse(textDecoder.decode(sharedImageMapData));
+
             for(let key in sharedImageMap){
               const {width,height,imgBase64,hoverImgBase64,checkImgBase64} = sharedImageMap[key];
               imageMap.set(Number(key),{
@@ -69,15 +66,26 @@ export default class SubCanvas {
             const level = e.data.level;
             const pieceIndex = e.data.pieceIndex;
 
-            canvas = e.data.canvas;
-            canvas.width = width*2;
-            canvas.height = height*2;
-            
-            ctx = canvas.getContext('2d',{
+            const copyCanvas = new OffscreenCanvas(width*2,height*2); 
+            const copyCtx = copyCanvas.getContext('2d',{
               willReadFrequently: true,
             });
 
-            render(ctx,width,height,shared,idList,typeList,highlightList,imageMap,offsetX,offsetY,realPieceToRenderingScale,rectOtherList,textOtherList,pathOtherList);
+            const canvas = e.data.canvas;
+            ctx = canvas.getContext('2d');
+
+            canvas.width = copyCanvas.width;
+            canvas.height = copyCanvas.height;
+
+            copyCtx.save();
+            copyCtx.rect(0,0,copyCanvas.width,copyCanvas.height);
+            copyCtx.clip();
+
+            render(copyCtx,width,height,shared,idList,typeList,highlightList,imageMap,offsetX,offsetY,realPieceToRenderingScale,rectOtherList,textOtherList,pathOtherList);
+            
+            copyCtx.restore();
+            
+            ctx.drawImage(copyCanvas,0,0);
 
             self.postMessage({
               type: "render",
@@ -131,9 +139,9 @@ export default class SubCanvas {
       offsetX: number,
       offsetY: number,
       realPieceToRenderingScale: number,
-      rectOtherList,
-      textOtherList,
-      pathOtherList,
+      rectOtherList: any,
+      textOtherList: any,
+      pathOtherList: any,
     ): OffscreenCanvas | void => {
       // const now = Date.now();
 
@@ -329,8 +337,12 @@ export default class SubCanvas {
         } else if (e.data.type === 'render') {
           const level = e.data.level;
           const pieceIndex = e.data.pieceIndex;
-
-          this.geometryManager.setCanvasArea(level, pieceIndex, 2);
+          this.region.updateRenderingBlockAttribute(
+            level,
+            pieceIndex,
+            'state',
+            RenderingState.rendered,
+          );
           this.isBusy = false;
 
           // const imageBitmap = e.data.img;
@@ -347,17 +359,11 @@ export default class SubCanvas {
         }
       };
 
-      const offscreenCanvas = this.canvas.transferControlToOffscreen();
-
-      this.worker.postMessage(
-        {
-          type: 'init',
-          canvas: offscreenCanvas,
-          shared: this.geometryManager.getSerializedData(),
-          sharedImageMap,
-        },
-        [offscreenCanvas],
-      );
+      this.worker.postMessage({
+        type: 'init',
+        shared: this.geometryManager.getSerializedData(),
+        sharedImageMap,
+      });
     });
   }
 
@@ -370,39 +376,43 @@ export default class SubCanvas {
     pieceIndex: number,
     realPieceToRenderingScale: number,
   ): void {
-    // console.time(this.canvasFlag);
-
     this.isBusy = true;
 
-    const areaInfo = this.geometryManager.getCanvasArea(level, pieceIndex);
+    const blockInfo = this.region.getRenderingBlock(level, pieceIndex);
 
-    if (areaInfo.idList.length > 0) {
-      const canvas = document.createElement('canvas');
-      const offscreenCanvas = canvas.transferControlToOffscreen();
-      this.geometryManager.setCanvasArea(level, pieceIndex, canvas);
-
-      this.worker.postMessage(
-        {
-          type: 'render',
-          width,
-          height,
-          realPieceToRenderingScale,
-          offsetX,
-          offsetY,
-          idList: areaInfo.idList,
-          typeList: areaInfo.typeList,
-          highlightList: this.geometryManager.getHighlightList(),
-          level,
-          pieceIndex,
-          canvas: offscreenCanvas,
-        },
-        [offscreenCanvas],
+    if (!blockInfo || blockInfo.idList.length <= 0) {
+      this.region.updateRenderingBlockAttribute(level, pieceIndex, 'image', null);
+      this.region.updateRenderingBlockAttribute(
+        level,
+        pieceIndex,
+        'state',
+        RenderingState.rendered,
       );
-    } else {
-      this.geometryManager.setCanvasArea(level, pieceIndex, null);
-      this.geometryManager.setCanvasArea(level, pieceIndex, 2);
       this.isBusy = false;
+      return;
     }
+
+    const canvas = document.createElement('canvas');
+    const offscreenCanvas = canvas.transferControlToOffscreen();
+    this.region.updateRenderingBlockAttribute(level, pieceIndex, 'image', canvas);
+
+    this.worker.postMessage(
+      {
+        type: 'render',
+        width,
+        height,
+        realPieceToRenderingScale,
+        offsetX,
+        offsetY,
+        idList: blockInfo.idList,
+        typeList: blockInfo.typeList,
+        highlightList: this.geometryManager.getHighlightList(),
+        level,
+        pieceIndex,
+        canvas: offscreenCanvas,
+      },
+      [offscreenCanvas],
+    );
   }
 
   public getIsBusy(): boolean {
@@ -411,9 +421,5 @@ export default class SubCanvas {
 
   public getIsInitialized(): boolean {
     return this.isInitialized;
-  }
-
-  public hasCharacter(str: string): boolean {
-    return this.characterHash === str;
   }
 }

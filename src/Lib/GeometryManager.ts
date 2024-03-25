@@ -7,8 +7,14 @@ import {
   TextProperty,
 } from '../Type/Geometry.type';
 import CanvasManager from './CanvasManager';
+import { RenderingRegion } from './Region';
+import Util from './Util';
+import { Whole } from './Whole';
 export default class GeometryManager {
   private static mgr: GeometryManager | null = null;
+
+  private whole: Whole = Whole.from();
+  private region: RenderingRegion = RenderingRegion.from();
 
   private contextHelper = <OffscreenCanvasRenderingContext2D>new OffscreenCanvas(0, 0).getContext(
     '2d',
@@ -162,272 +168,6 @@ export default class GeometryManager {
     );
   }
 
-  private setAreaByLevel = (level: number) => {
-    const pieceNumber = (1 << (2 * level - 1)) ** 2;
-    this.canvasArea[level] = Array.from({ length: pieceNumber }, () => ({
-      state: 0,
-      bitmap: null,
-      rendering: {
-        typeList: new Uint8Array(),
-        idList: new Uint32Array(),
-      },
-    }));
-    for (let i = 0; i < pieceNumber; i++) {
-      this.setAreaPiece(level, i);
-    }
-  };
-
-  public setAreaPiece = (level: number, pieceIndex: number) => {
-    const sideNumber = 1 << (level * 2 - 1);
-
-    const offsetX = this.boundary[0];
-    const offsetY = this.boundary[2];
-
-    const realWidth = this.boundary[4];
-    const realHeight = this.boundary[5];
-
-    const pieceIndexX = pieceIndex % sideNumber;
-    const pieceIndexY = Math.floor(pieceIndex / sideNumber);
-
-    const pieceWidth = realWidth / sideNumber;
-    const pieceHeight = realHeight / sideNumber;
-
-    if (level <= 1) {
-      const rectList = Array.from(this.drawingDataModel.rect.values());
-      const textList = Array.from(this.drawingDataModel.text.values());
-      const imageList = Array.from(this.drawingDataModel.image.values());
-      const pathList = Array.from(this.drawingDataModel.path.values());
-
-      const mergedList = (<any>rectList).concat(textList).concat(imageList).concat(pathList);
-
-      this.setCanvasArea(
-        level,
-        pieceIndex,
-        mergedList
-          .sort((a: any, b: any) => a.zIndex - b.zIndex)
-          .reduce(
-            (
-              idList: Array<{
-                id: number;
-                propertyType: number;
-              }>,
-              item: any,
-            ) => {
-              // todo use text align etc. to set selfOffset
-              let selfOffsetX = 0;
-              let selfOffsetY = 0;
-              let selfWidth = item.width;
-              let selfHeight = item.height;
-
-              if (item.propertyType === 1) {
-                selfOffsetX = -item.width / 2;
-                selfOffsetY = -item.height / 2;
-              } else if (item.propertyType === 3) {
-                if (item.keepWidth) {
-                  if (selfHeight > selfWidth) {
-                    selfWidth = item.width / sideNumber / 4;
-                    selfOffsetX = -selfWidth / 2 - item.x + item.fromX;
-                  } else {
-                    selfHeight = item.height / sideNumber / 4;
-                    selfOffsetY = -selfHeight / 2 - item.y + item.fromY;
-                  }
-                }
-              }
-
-              // todo add crossing region flag
-              if (
-                this.intersects(
-                  {
-                    x: pieceIndexX * pieceWidth + offsetX,
-                    y: pieceIndexY * pieceHeight + offsetY,
-                    width: pieceWidth,
-                    height: pieceHeight,
-                  },
-                  {
-                    x: item.x + selfOffsetX,
-                    y: item.y + selfOffsetY,
-                    width: selfWidth,
-                    height: selfHeight,
-                  },
-                )
-              ) {
-                idList.push({
-                  id: item.id,
-                  propertyType: item.propertyType,
-                });
-              }
-              return idList;
-            },
-            [],
-          ),
-      );
-    } else {
-      // get parent level index location
-      const parentIndex = Math.abs(
-        Math.ceil((pieceIndexX + 1) / 4 - 1) +
-          Math.ceil((pieceIndexY + 1) / 4 - 1) * (sideNumber / 4),
-      );
-
-      this.fillCanvasArea(level - 1, parentIndex);
-
-      if (this.canvasArea[level - 1][parentIndex].rendering.idList.length === 0) {
-        this.setAreaPiece(level - 1, parentIndex);
-      }
-
-      const idList = this.canvasArea[level - 1][parentIndex].rendering.idList;
-      const typeList = this.canvasArea[level - 1][parentIndex].rendering.typeList;
-
-      const mergedList: any = [];
-
-      idList.forEach((id: number, index: number) => {
-        const type = typeList[index];
-        let item = null;
-
-        // todo use text align etc. to set selfOffset
-        let selfOffsetX = 0;
-        let selfOffsetY = 0;
-        let selfWidth = 0;
-        let selfHeight = 0;
-
-        if (type === 0) {
-          item = <RectProperty>this.drawingDataModel.rect.get(id);
-          selfWidth = item.width;
-          selfHeight = item.height;
-        } else if (type === 1) {
-          item = <TextProperty>this.drawingDataModel.text.get(id);
-          selfOffsetX = -(item?.width ?? 0) / 2;
-          selfOffsetY = -(item?.height ?? 0) / 2;
-          selfWidth = <number>item.width;
-          selfHeight = <number>item.height;
-        } else if (type === 2) {
-          item = <ImageProperty>this.drawingDataModel.image.get(id);
-          selfWidth = <number>item.width;
-          selfHeight = <number>item.height;
-        } else if (type === 3) {
-          item = <PathProperty>this.drawingDataModel.path.get(id);
-          selfWidth = <number>item.width;
-          selfHeight = <number>item.height;
-
-          if (item.keepWidth) {
-            if (selfHeight > selfWidth) {
-              selfWidth = selfWidth / sideNumber / 4;
-              selfOffsetX = -selfWidth / 2 - (item.x ?? 0) + item.fromX;
-            } else {
-              selfHeight = selfHeight / sideNumber / 4;
-              selfOffsetY = -selfHeight / 2 - (item.y ?? 0) + item.fromY;
-            }
-          }
-        }
-
-        if (
-          this.intersects(
-            {
-              x: pieceIndexX * pieceWidth + offsetX,
-              y: pieceIndexY * pieceHeight + offsetY,
-              width: pieceWidth,
-              height: pieceHeight,
-            },
-            {
-              x: (item?.x ?? 0) + selfOffsetX,
-              y: (item?.y ?? 0) + selfOffsetY,
-              width: selfWidth,
-              height: selfHeight,
-            },
-          )
-        ) {
-          mergedList.push({
-            id,
-            propertyType: type,
-          });
-        }
-      });
-
-      this.setCanvasArea(level, pieceIndex, mergedList);
-    }
-  };
-
-  private intersects(
-    range1: { x: number; y: number; width: number; height: number },
-    range2: { x: number; y: number; width: number; height: number },
-  ): boolean {
-    return (
-      range1.x < range2.x + range2.width &&
-      range1.x + range1.width > range2.x &&
-      range1.y < range2.y + range2.height &&
-      range1.y + range1.height > range2.y
-    );
-  }
-
-  private getDrawingBoundary(
-    maxX = Number.NEGATIVE_INFINITY,
-    maxY = Number.NEGATIVE_INFINITY,
-  ): [number, number, number, number, number, number] {
-    let minX = Number.POSITIVE_INFINITY;
-    let minY = Number.POSITIVE_INFINITY;
-
-    const rectList = this.drawingDataModel.rect;
-    const textList = this.drawingDataModel.text;
-    const imageList = this.drawingDataModel.image;
-    const pathList = this.drawingDataModel.path;
-
-    for (const [id, rect] of rectList) {
-      minX = Math.min(minX, rect.width < 0 ? rect.x + rect.width : rect.x);
-      minY = Math.min(minY, rect.height < 0 ? rect.y + rect.height : rect.y);
-      maxX = Math.max(maxX, rect.width < 0 ? rect.x : rect.x + rect.width);
-      maxY = Math.max(maxY, rect.height < 0 ? rect.y : rect.y + rect.height);
-    }
-
-    for (const [id, text] of textList) {
-      minX = Math.min(minX, (text.width || 0) < 0 ? text.x + (text.width || 0) : text.x);
-      minY = Math.min(minY, (text.height || 0) < 0 ? text.y + (text.height || 0) : text.y);
-      maxX = Math.max(maxX, (text.width || 0) < 0 ? text.x : text.x + (text.width || 0));
-      maxY = Math.max(maxY, (text.height || 0) < 0 ? text.y : text.y + (text.height || 0));
-    }
-
-    for (const [id, image] of imageList) {
-      minX = Math.min(minX, (image.width || 0) < 0 ? image.x + (image.width || 0) : image.x);
-      minY = Math.min(minY, (image.height || 0) < 0 ? image.y + (image.height || 0) : image.y);
-      maxX = Math.max(maxX, (image.width || 0) < 0 ? image.x : image.x + (image.width || 0));
-      maxY = Math.max(maxY, (image.height || 0) < 0 ? image.y : image.y + (image.height || 0));
-    }
-
-    for (const [id, path] of pathList) {
-      minX = Math.min(minX, path.fromX, path.toX);
-      minY = Math.min(minY, path.fromY, path.toY);
-      maxX = Math.max(maxX, path.fromX, path.toX);
-      maxY = Math.max(maxY, path.fromY, path.toY);
-    }
-
-    if (rectList.size === 0 && textList.size === 0 && imageList.size === 0 && pathList.size === 0) {
-      minX = 0;
-      minY = 0;
-    }
-
-    // todo considering border width
-    minX -= 2;
-    maxX += 2;
-    minY -= 2;
-    maxY += 2;
-
-    return [minX, maxX, minY, maxY, maxX - minX, maxY - minY];
-  }
-
-  public fillCanvasArea(level: number, index: number) {
-    if (!this.canvasArea[level]) {
-      this.canvasArea[level] = [];
-    }
-    if (!this.canvasArea[level][index]) {
-      this.canvasArea[level][index] = {
-        state: 0,
-        bitmap: null,
-        rendering: {
-          typeList: new Uint8Array(),
-          idList: new Uint32Array(),
-        },
-      };
-    }
-  }
-
   public collectRect(rect: RectProperty): void {
     if (rect.id) {
       this.autoIdMap.set(rect.id, { id: this.drawingDataModel.rect.size, type: 0 });
@@ -514,67 +254,12 @@ export default class GeometryManager {
     this.drawingDataModel.path.set(path.id, path);
   }
 
-  public getBoundary(): [number, number, number, number, number, number] {
-    return this.boundary;
-  }
-
-  public setCanvasArea(
-    level: number,
-    index: number,
-    canvas: OffscreenCanvas | HTMLCanvasElement,
-  ): void;
-  public setCanvasArea(
-    level: number,
-    index: number,
-    bitmap: ImageBitmap | HTMLCanvasElement | null,
-  ): void;
-  public setCanvasArea(level: number, index: number, rect: RectProperty): void;
-  public setCanvasArea(level: number, index: number, state: number): void;
-  public setCanvasArea(
-    level: number,
-    index: number,
-    idList: Array<{ id: number; propertyType: number }>,
-  ): void;
-  public setCanvasArea(level: number, index: number, value: any): void {
-    this.fillCanvasArea(level, index);
-    if (value instanceof ImageBitmap || value instanceof HTMLCanvasElement) {
-      this.canvasArea[level][index].bitmap = value;
-    } else if (value instanceof OffscreenCanvas) {
-      this.canvasArea[level][index].bitmap = value;
-    } else if (Array.isArray(value)) {
-      this.canvasArea[level][index].rendering.idList = new Uint32Array(
-        new SharedArrayBuffer(value.length * 4),
-      );
-      this.canvasArea[level][index].rendering.typeList = new Uint8Array(
-        new SharedArrayBuffer(value.length),
-      );
-
-      for (let i = 0; i < value.length; i++) {
-        this.canvasArea[level][index].rendering.idList[i] = value[i].id;
-        this.canvasArea[level][index].rendering.typeList[i] = value[i].propertyType;
-      }
-    } else if (value === 0 || value === 1 || value === 2) {
-      this.canvasArea[level][index].state = value;
-    }
-  }
-
   public getCanvasAreaState(level: number, index: number): 0 | 1 | 2 {
     return this.canvasArea[level]?.[index]?.state;
   }
 
   public getCanvasAreaBitmap(level: number, index: number): any {
     return this.canvasArea[level]?.[index]?.bitmap;
-  }
-
-  public getCanvasArea(level: number, index: number): any {
-    this.fillCanvasArea(level, index);
-    if (this.canvasArea[level]?.[index]?.rendering.idList.length === 0) {
-      this.setAreaPiece(level, index);
-    }
-    return {
-      idList: this.canvasArea[level]?.[index]?.rendering.idList,
-      typeList: this.canvasArea[level]?.[index]?.rendering.typeList,
-    };
   }
 
   public getOriginalRectList(): Map<number, RectProperty> {
@@ -601,6 +286,10 @@ export default class GeometryManager {
       this.drawingDataModel.path,
     ];
     return originalList[type];
+  }
+
+  public getOriginalData() {
+    return this.drawingDataModel;
   }
 
   public serializeRect(): void {
@@ -943,7 +632,7 @@ export default class GeometryManager {
           : 0;
 
       if (
-        this.intersects(
+        Util.intersects(
           {
             x: sharedRect.x[id] - additionalBorderWidth / 2,
             y: sharedRect.y[id] - additionalBorderWidth / 2,
@@ -965,7 +654,7 @@ export default class GeometryManager {
 
     for (const [id] of this.drawingDataModel.text) {
       if (
-        this.intersects(
+        Util.intersects(
           {
             x: sharedText.x[id] - sharedText.width[id] / 2,
             y: sharedText.y[id] - sharedText.height[id] / 2,
@@ -987,7 +676,7 @@ export default class GeometryManager {
 
     for (const [id] of this.drawingDataModel.image) {
       if (
-        this.intersects(
+        Util.intersects(
           {
             x: sharedImage.x[id],
             y: sharedImage.y[id],
@@ -1010,7 +699,7 @@ export default class GeometryManager {
     for (const [id] of this.drawingDataModel.path) {
       const pathInfo = originalPathData?.get(id);
       if (
-        this.intersects(
+        Util.intersects(
           {
             x: <number>pathInfo?.x,
             y: <number>pathInfo?.y,
@@ -1040,32 +729,33 @@ export default class GeometryManager {
     [key: string]: {
       width: number;
       height: number;
-      imgBase64: string;
+      normalImgBase64: string;
       hoverImgBase64: string;
-      checkImgBase64: string;
+      checkedImgBase64: string;
     };
   }): Promise<void> {
     return new Promise((resolve) => {
       let i = 0;
       for (let key in spriteInfo) {
-        const { width, height, imgBase64, hoverImgBase64, checkImgBase64 } = spriteInfo[key];
+        const { width, height, normalImgBase64, hoverImgBase64, checkedImgBase64 } =
+          spriteInfo[key];
         const img = new Image();
         const hoverImg = new Image();
         const checkImg = new Image();
-        this.nameIdMap.set(key, 0);
+        this.nameIdMap.set(key, i);
         this.imageMap.set(i, {
           img,
           hoverImg,
           checkImg,
           width,
           height,
-          imgBase64,
+          imgBase64: normalImgBase64,
           hoverImgBase64,
-          checkImgBase64,
+          checkImgBase64: checkedImgBase64,
         });
-        img.src = imgBase64;
+        img.src = normalImgBase64;
         hoverImg.src = hoverImgBase64;
-        checkImg.src = checkImgBase64;
+        checkImg.src = checkedImgBase64;
         i++;
       }
       resolve();
@@ -1088,11 +778,11 @@ export default class GeometryManager {
     // image map serialize
     const sharedImageMap = this.serializeImageMap();
 
-    this.boundary = this.getDrawingBoundary();
+    this.whole.initOriginalBoundary(this.drawingDataModel);
 
-    this.setAreaByLevel(1);
-    this.setAreaByLevel(2);
-    this.setAreaByLevel(3);
+    this.region.setRenderingBlockByLevel(1);
+    this.region.setRenderingBlockByLevel(2);
+    this.region.setRenderingBlockByLevel(3);
 
     await Promise.all(
       canvasManager.getSubCanvasList().map((subCanvas) => subCanvas.init(sharedImageMap)),

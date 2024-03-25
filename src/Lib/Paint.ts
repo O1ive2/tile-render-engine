@@ -1,6 +1,7 @@
 import { ImageProperty, PathProperty, RectProperty, TextProperty } from '../Type/Geometry.type';
 import CanvasManager from './CanvasManager';
 import GeometryManager from './GeometryManager';
+import { Highlight } from './Highlight';
 
 export default class Paint {
   private canvasManager: CanvasManager;
@@ -27,17 +28,19 @@ export default class Paint {
   }
 
   public highlight(idList: Array<number | string>, property: any): void {
+    const highlightList = Highlight.from();
+
     for (let businessId of idList) {
       const autoIdMap = this.geometryManager.getAutoIdMap();
       const mapInfo = autoIdMap.get(businessId);
       if (mapInfo) {
         const { id, type } = mapInfo;
         if (property) {
-          this.geometryManager.getHighlightListByType(type).set(id, property);
+          highlightList.get(type)?.set(id, property);
         } else {
-          this.geometryManager.getHighlightListByType(type).delete(id);
+          highlightList.get(type)?.delete(id);
         }
-        this.canvasManager.updateCanvasByGeometryId(type, id);
+        // this.canvasManager.updateCanvasByGeometryId(type, id);
       }
     }
   }
@@ -46,9 +49,9 @@ export default class Paint {
     [key: string]: {
       width: number;
       height: number;
-      imgBase64: string;
+      normalImgBase64: string;
       hoverImgBase64: string;
-      checkImgBase64: string;
+      checkedImgBase64: string;
     };
   }): Promise<void> {
     return new Promise((resolve, reject) => {
