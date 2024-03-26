@@ -40,7 +40,7 @@ export default class Paint {
         } else {
           highlightList.get(type)?.delete(id);
         }
-        // this.canvasManager.updateCanvasByGeometryId(type, id);
+        this.canvasManager.updateCanvasByGeometryId(type, id);
       }
     }
   }

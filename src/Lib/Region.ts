@@ -15,6 +15,7 @@ export enum RenderingState {
   unrendered,
   rendering,
   rendered,
+  rerendering,
 }
 
 export type BlockAttribute = 'state' | 'image';
@@ -37,7 +38,7 @@ export class RenderingBlock {
   public image: ImageBitmap | OffscreenCanvas | HTMLCanvasElement | null = null;
   public idList: Uint32Array = new Uint32Array();
   public typeList: Uint8Array = new Uint8Array();
-  public highlightList: Set<string> = new Set([]);
+  public reRenderList: Map<string, { type: number; id: number }> = new Map([]);
   public parent: RenderingBlock | null = null;
 
   constructor(level: number, index: number) {
@@ -114,10 +115,10 @@ export class RenderingBlock {
 
         if (item.keepWidth) {
           if (selfHeight > selfWidth) {
-            selfWidth = selfWidth / sideNumber / 4;
+            selfWidth = selfWidth / sideNumber / 2;
             selfOffsetX = -selfWidth / 2 - (item.x ?? 0) + item.fromX;
           } else {
-            selfHeight = selfHeight / sideNumber / 4;
+            selfHeight = selfHeight / sideNumber / 2;
             selfOffsetY = -selfHeight / 2 - (item.y ?? 0) + item.fromY;
           }
         }
@@ -148,8 +149,12 @@ export class RenderingBlock {
     this.typeList = Uint8Array.from(intersectingTypeList);
   }
 
-  public addHighlight(type: GeometryType, id: number) {
-    this.highlightList.add(`${type}@${id}`);
+  public addReRender(type: GeometryType, id: number) {
+    this.reRenderList.set(`${type}@${id}`, {
+      type,
+      id,
+    });
+    this.state = RenderingState.rerendering;
   }
 
   public setAttribute(key: BlockAttribute, value: any) {
@@ -213,6 +218,23 @@ export class RenderingRegion {
     value: any,
   ) {
     this.getRenderingBlock(level, index)?.setAttribute(key, value);
+  }
+
+  public getRenderingBlockByFilter(filterOptions: { id: number; type: number }) {
+    const filteredList = [];
+
+    for (let [key, renderingBlockMap] of this.data) {
+      for (let [index, renderingBlock] of renderingBlockMap) {
+        if (
+          renderingBlock.idList.includes(filterOptions.id) &&
+          renderingBlock.typeList.includes(filterOptions.type)
+        ) {
+          filteredList.push(renderingBlock);
+        }
+      }
+    }
+
+    return filteredList;
   }
 
   static from(): RenderingRegion {

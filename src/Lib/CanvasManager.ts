@@ -1,4 +1,5 @@
 import throttle from 'lodash/throttle';
+import { ImageProperty, PathProperty, RectProperty, TextProperty } from '../Type/Geometry.type';
 import { maxThreads } from '../config';
 import GeometryManager from './GeometryManager';
 import Paint from './Paint';
@@ -61,463 +62,452 @@ export default class CanvasManager {
     return this.subCanvasList;
   }
 
-  // public updateCanvasByGeometryId(geometryType: number, id: number): void {
-  //   const { minX, minY } = this.whole.getOriginalBoundary();
-  //   const imageMap = this.geometryManager.getImageMap();
-  //   const areaList = this.getPiecesIndex({
-  //     x: this.renderingOffsetX,
-  //     y: this.renderingOffsetY,
-  //     k: this.renderingScale,
-  //   });
-
-  //   // let sharedItem = null;
-  //   let borderWidth = 0;
-  //   let width = 0;
-  //   let height = 0;
-
-  //   let x = 0;
-  //   let y = 0;
-
-  //   const originalRectData = this.geometryManager.getOriginalRectList();
-  //   const originalTextData = this.geometryManager.getOriginalTextList();
-  //   const originalImageData = this.geometryManager.getOriginalImageList();
-  //   const originalPathData = this.geometryManager.getOriginalPathList();
-
-  //   const highlightList = this.geometryManager.getHighlightList();
-
-  //   if (geometryType === 0) {
-  //     const rectItem = <RectProperty>originalRectData.get(id);
-  //     x = rectItem.x;
-  //     y = rectItem.y;
-  //     width = rectItem.width;
-  //     height = rectItem.height;
-  //     borderWidth = rectItem.lineWidth ?? 0;
-  //   } else if (geometryType === 1) {
-  //     const texItem = <TextProperty>originalTextData.get(id);
-  //     x = texItem.x;
-  //     y = texItem.y;
-  //     width = <number>texItem.width;
-  //     height = <number>texItem.height;
-  //   } else if (geometryType === 2) {
-  //     const imageItem = <ImageProperty>originalImageData.get(id);
-  //     x = imageItem.x;
-  //     y = imageItem.y;
-  //     width = <number>imageItem.width;
-  //     height = <number>imageItem.height;
-  //   } else if (geometryType === 3) {
-  //     const pathItem = <PathProperty>originalPathData.get(id);
-  //     x = <number>pathItem.x;
-  //     y = <number>pathItem.y;
-  //     width = <number>pathItem.width;
-  //     height = <number>pathItem.height;
-  //   }
-
-  //   const intersect = this.geometryManager.findIntersecting(geometryType, id);
-
-  //   // find intersecting
-
-  //   const pieceList = this.geometryManager.getExistedPiecesById(id);
-
-  //   for (let i = 0; i < pieceList.length; i++) {
-  //     const { level, index } = pieceList[i];
-
-  //     const bitmap = this.geometryManager.getCanvasAreaBitmap(level, index);
-  //     const canvasArea = this.region.getCanvasArea(level, index);
-
-  //     const filteredIdList: Array<number> = [];
-  //     const filteredTypeList: Array<number> = [];
-
-  //     canvasArea.idList.forEach((id: number, index: number) => {
-  //       const type = canvasArea.typeList[index];
-  //       if (
-  //         intersect.idList.some((intersectId: number, intersectIndex) => {
-  //           return intersectId === id && intersect.typeList[intersectIndex] === type;
-  //         })
-  //       ) {
-  //         filteredIdList.push(id);
-  //         filteredTypeList.push(type);
-  //       }
-  //     });
-
-  //     if (filteredIdList.length <= 0) {
-  //       continue;
-  //     }
-
-  //     const globalLineCaps = ['butt', 'round', 'square'];
-  //     const sideNumber = this.sideNumberOnLevel;
-  //     const indexX = index % sideNumber;
-  //     const indexY = Math.floor(index / sideNumber);
-  //     const realX = (indexX * this.realWidth) / sideNumber;
-  //     const realY = (indexY * this.realHeight) / sideNumber;
-  //     const realPieceToRenderingScale = sideNumber * this.renderingToRealScale;
-
-  //     const offscreenCanvas = new OffscreenCanvas(bitmap.width, bitmap.height);
-  //     const ctx = <OffscreenCanvasRenderingContext2D>offscreenCanvas.getContext('2d', {
-  //       willReadFrequently: true,
-  //     });
-
-  //     ctx.clearRect(0, 0, bitmap.width, bitmap.height);
-
-  //     ctx.drawImage(bitmap, 0, 0, bitmap.width, bitmap.height);
-
-  //     ctx.save();
-
-  //     ctx.scale(realPieceToRenderingScale, realPieceToRenderingScale);
-  //     ctx.translate(-(realX + minX + borderWidth / 2), -(realY + minY + borderWidth / 2));
-
-  //     ctx.beginPath();
-  //     ctx.rect(x, y, width + borderWidth, height + borderWidth);
-  //     ctx.clip();
-  //     ctx.clearRect(x, y, width + borderWidth, height + borderWidth);
-
-  //     for (let i = 0; i < filteredIdList.length; i++) {
-  //       const id = filteredIdList[i];
-  //       const filteredType = filteredTypeList[i];
-
-  //       if (filteredType === 0) {
-  //         const rectItem = <RectProperty>originalRectData.get(id);
-  //         const x = rectItem.x;
-  //         const y = rectItem.y;
-  //         const width = rectItem.width;
-  //         const height = rectItem.height;
-  //         const lineWidth = rectItem.lineWidth ?? 0;
-  //         const fillStyle = rectItem.fillStyle || '';
-  //         const strokeStyle = rectItem.strokeStyle || '';
-  //         const lineDash = rectItem.lineDash || [];
-  //         const type = rectItem.type ?? 0;
-  //         const alpha = rectItem.alpha ?? 1;
-
-  //         ctx.save();
-
-  //         ctx.globalAlpha = alpha;
-  //         ctx.setLineDash(lineDash);
-  //         ctx.fillStyle = fillStyle || '';
-  //         ctx.strokeStyle = strokeStyle || '';
-  //         ctx.lineWidth = lineWidth;
-
-  //         ctx.beginPath();
-  //         ctx.rect(x, y, width, height);
-
-  //         // hover
-  //         if (highlightList.rect.has(id)) {
-  //           // todo more property support
-  //           const highlightProperty = highlightList.rect.get(id);
-  //           if (highlightProperty) {
-  //             ctx.globalAlpha = highlightProperty.alpha || ctx.globalAlpha;
-  //             ctx.strokeStyle = highlightProperty.strokeStyle || ctx.strokeStyle;
-  //             ctx.fillStyle = highlightProperty.fillStyle || ctx.fillStyle;
-  //           }
-  //         }
-
-  //         if (type === 0) {
-  //           ctx.fill();
-  //         } else if (type === 1) {
-  //           ctx.stroke();
-  //         } else if (type === 2) {
-  //           ctx.stroke();
-  //           ctx.fill();
-  //         }
-
-  //         ctx.closePath();
-
-  //         ctx.restore();
-  //       } else if (filteredType === 1) {
-  //         const textItem = <TextProperty>originalTextData.get(id);
-  //         const x = textItem.x;
-  //         const y = textItem.y;
-  //         const alpha = textItem.alpha ?? 1;
-  //         const fontSize = textItem.fontSize;
-  //         const content = textItem.content || '';
-  //         const fillStyle = textItem.fillStyle || '';
-
-  //         // direction?: 'ltr' | 'rtl' | 'inherit';
-
-  //         ctx.save();
-
-  //         ctx.globalAlpha = alpha;
-  //         ctx.fillStyle = fillStyle || '#000';
-
-  //         ctx.font = `${fontSize}px sans-serif`;
-  //         ctx.textAlign = 'center';
-  //         ctx.textBaseline = 'middle';
-  //         ctx.fillText(content, x, y);
-
-  //         ctx.restore();
-  //       } else if (filteredType === 2) {
-  //         const imageItem = <ImageProperty>originalImageData.get(id);
-  //         const x = imageItem.x;
-  //         const y = imageItem.y;
-  //         const alpha = imageItem.alpha ?? 1;
-
-  //         const { width, height, img, hoverImg, checkImg } = imageMap.get(imageItem.imageIndex);
-
-  //         ctx.save();
-
-  //         ctx.globalAlpha = alpha;
-
-  //         let renderingImg = img;
-
-  //         if (highlightList.image.has(id)) {
-  //           // todo more property support
-  //           const highlightProperty = highlightList.image.get(id);
-  //           if (highlightProperty) {
-  //             ctx.globalAlpha = highlightProperty.alpha || ctx.globalAlpha;
-  //             if (highlightProperty.state === 'hover') {
-  //               renderingImg = hoverImg;
-  //             } else if (highlightProperty.state === 'check') {
-  //               renderingImg = checkImg;
-  //             } else {
-  //               renderingImg = img;
-  //             }
-  //           }
-  //         }
-
-  //         ctx.drawImage(renderingImg, x, y, width, height);
-
-  //         // if (state === 1) {
-  //         //   const hoverProperty = serializedData.hoverIdList.get(id);
-  //         //   ctx.globalCompositeOperation = 'source-in';
-  //         //   ctx.fillStyle = hoverProperty.strokeStyle;
-  //         //   ctx.fillRect(x, y, width, height);
-  //         // } else if (state === 2) {
-  //         //   const checkedProperty = serializedData.checkedIdList.get(id);
-  //         //   ctx.globalCompositeOperation = 'source-in';
-  //         //   ctx.fillStyle = checkedProperty.strokeStyle;
-  //         //   ctx.fillRect(x, y, width, height);
-  //         // }
-
-  //         ctx.restore();
-  //       } else if (filteredType === 3) {
-  //         const pathItem = <PathProperty>originalPathData.get(id);
-  //         const alpha = pathItem.alpha ?? 1;
-  //         const fromX = pathItem.fromX;
-  //         const fromY = pathItem.fromY;
-  //         const toX = pathItem.toX;
-  //         const toY = pathItem.toY;
-  //         const lineCap = pathItem.lineCap ?? 0;
-  //         const lineWidth =
-  //           (pathItem.keepWidth
-  //             ? (pathItem?.lineWidth ?? 0) / realPieceToRenderingScale
-  //             : pathItem?.lineWidth ?? 0) || 1;
-  //         const lineDash = pathItem.lineDash || [];
-  //         const strokeStyle = pathItem.strokeStyle || '';
-
-  //         ctx.save();
-
-  //         ctx.beginPath();
-
-  //         ctx.globalAlpha = alpha;
-  //         ctx.setLineDash(lineDash);
-  //         ctx.strokeStyle = strokeStyle || '';
-  //         ctx.lineWidth = lineWidth;
-  //         ctx.lineCap = <CanvasLineCap>globalLineCaps[lineCap];
-
-  //         // hover
-  //         if (highlightList.path.has(id)) {
-  //           // todo more property support
-  //           const highlightProperty = highlightList.path.get(id);
-  //           if (highlightProperty) {
-  //             ctx.globalAlpha = highlightProperty.alpha || ctx.globalAlpha;
-  //             ctx.strokeStyle = highlightProperty.strokeStyle || ctx.strokeStyle;
-  //             ctx.setLineDash(highlightProperty.lineDash || lineDash);
-  //           }
-  //         }
-
-  //         ctx.moveTo(fromX, fromY);
-  //         ctx.lineTo(toX, toY);
-  //         ctx.stroke();
-  //         ctx.closePath();
-
-  //         ctx.restore();
-  //       }
-  //     }
-
-  //     ctx.restore();
-
-  //     // if (this.level === level) {
-  //     //   const img = new Image();
-  //     //   offscreenCanvas
-  //     //     .convertToBlob()
-  //     //     .then((data) => {
-  //     //       img.src = URL.createObjectURL(data);
-  //     //       img.onload = () => {
-  //     //         // console.log(chip, scale);
-  //     //       };
-  //     //     })
-  //     //     .catch((e) => {});
-  //     // }
-
-  //     this.geometryManager.setCanvasArea(level, index, offscreenCanvas);
-  //   }
-  // }
-
-  // public updateHover(pointerX: number, pointerY: number) {
-  //   const { minX, minY, maxX, maxY, width, height } = this.whole.getOriginalBoundary();
-
-  //   const totalOffsetX =
-  //     this.renderingOffsetX +
-  //     ((this.mainCanvas.width - this.initialRenderingWidth) / 2) * this.renderingScale;
-
-  //   const totalOffsetY =
-  //     this.renderingOffsetY +
-  //     ((this.mainCanvas.height - this.initialRenderingHeight) / 2) * this.renderingScale;
-
-  //   const scale = this.renderingToRealScale * this.renderingScale;
-
-  //   // deeper level less query
-  //   const level = this.level > 3 ? this.level : 3;
-  //   const sideNumber = this.sideNumberOnLevel;
-
-  //   const pieceIndexX = Math.floor(((pointerX - totalOffsetX) / (width * scale)) * sideNumber);
-
-  //   const pieceIndexY = Math.floor(((pointerY - totalOffsetY) / (height * scale)) * sideNumber);
-
-  //   if (
-  //     pieceIndexX < 0 ||
-  //     pieceIndexX >= sideNumber ||
-  //     pieceIndexY < 0 ||
-  //     pieceIndexY >= sideNumber
-  //   ) {
-  //     return;
-  //   }
-
-  //   const pieceIndex = pieceIndexX + pieceIndexY * sideNumber;
-
-  //   const pieceInfo = this.geometryManager.getCanvasArea(level, pieceIndex);
-
-  //   const {
-  //     rect: sharedRect,
-  //     text: sharedText,
-  //     image: sharedImage,
-  //     path: sharedPath,
-  //   } = this.geometryManager.getSerializedData();
-
-  //   // origin
-  //   const originalRectData = this.geometryManager.getOriginalRectList();
-  //   const originalTextData = this.geometryManager.getOriginalTextList();
-  //   const originalImageData = this.geometryManager.getOriginalImageList();
-  //   const originalPathData = this.geometryManager.getOriginalPathList();
-
-  //   // image map
-  //   const imageMap = this.geometryManager.getImageMap();
-
-  //   // remove hover state
-  //   for (let [key, { type, id }] of this.hoverList) {
-  //     let minX = 0;
-  //     let minY = 0;
-  //     let maxX = 0;
-  //     let maxY = 0;
-  //     if (type === 0) {
-  //       const rect = <RectProperty>originalRectData.get(id);
-  //       minX = (rect.x - minX - (rect.lineWidth ?? 0) / 2) * scale + totalOffsetX;
-  //       minY = (rect.y - minY - (rect.lineWidth ?? 0) / 2) * scale + totalOffsetY;
-  //       maxX = minX + (rect.width + (rect.lineWidth ?? 0)) * scale;
-  //       maxY = minY + (rect.height + (rect.lineWidth ?? 0)) * scale;
-  //     } else if (type === 2) {
-  //       const image = <ImageProperty>originalImageData.get(id);
-  //       const { width, height } = imageMap.get(sharedImage.imageIndex[id]);
-
-  //       minX = (image.x - minX) * scale + totalOffsetX;
-  //       minY = (image.y - minY) * scale + totalOffsetY;
-  //       maxX = minX + width * scale;
-  //       maxY = minY + height * scale;
-  //     } else if (type === 3) {
-  //       const path = originalPathData.get(id);
-  //       const width = path?.width ?? 0;
-  //       const height = path?.height ?? 0;
-
-  //       minX = ((path?.x ?? 0) - minX) * scale + totalOffsetX;
-  //       minY = ((path?.y ?? 0) - minY) * scale + totalOffsetY;
-  //       maxX = minX + width * scale;
-  //       maxY = minY + height * scale;
-  //     }
-
-  //     if (!(pointerX >= minX && pointerX <= maxX && pointerY >= minY && pointerY <= maxY)) {
-  //       const currentGeometry = this.geometryManager.getOriginalDataByType(type).get(id);
-  //       this.hoverList.delete(key);
-  //       currentGeometry.hoverOut?.();
-  //     }
-  //   }
-
-  //   const typeList = pieceInfo.typeList.slice().reverse();
-  //   const idList = pieceInfo.idList.slice().reverse();
-
-  //   for (let i = 0; i < idList.length; i++) {
-  //     const type = typeList[i];
-  //     const id = idList[i];
-
-  //     let sharedItem = null;
-  //     let borderWidth = 0;
-  //     let sharedItemWidth = 0;
-  //     let sharedItemHeight = 0;
-  //     let x = 0;
-  //     let y = 0;
-  //     let originalData = null;
-
-  //     if (type === 0) {
-  //       sharedItem = sharedRect;
-  //       borderWidth = sharedItem.lineWidth[id];
-  //       sharedItemWidth = sharedItem.width[id];
-  //       sharedItemHeight = sharedItem.height[id];
-  //       x = sharedItem.x[id];
-  //       y = sharedItem.y[id];
-  //       originalData = originalRectData;
-  //     } else if (type === 1) {
-  //       sharedItem = sharedText;
-  //       sharedItemWidth = sharedItem.width[id];
-  //       sharedItemHeight = sharedItem.height[id];
-  //       x = sharedItem.x[id];
-  //       y = sharedItem.y[id];
-  //       originalData = originalTextData;
-  //     } else if (type === 2) {
-  //       const imageInfo = imageMap.get(sharedImage.imageIndex[id]);
-  //       sharedItem = sharedImage;
-  //       sharedItemWidth = imageInfo.width;
-  //       sharedItemHeight = imageInfo.height;
-  //       x = sharedItem.x[id];
-  //       y = sharedItem.y[id];
-  //       originalData = originalImageData;
-  //     } else if (type === 3) {
-  //       sharedItem = sharedPath;
-  //       sharedItemWidth = originalPathData.get(id)?.width ?? 0;
-  //       sharedItemHeight = originalPathData.get(id)?.height ?? 0;
-  //       x = originalPathData.get(id)?.x ?? 0;
-  //       y = originalPathData.get(id)?.y ?? 0;
-  //       originalData = originalPathData;
-  //     }
-
-  //     const currentGeometry = <any>originalData?.get(id);
-
-  //     if (!currentGeometry?.hover) {
-  //       continue;
-  //     }
-
-  //     const initialX = (x - minX - borderWidth / 2) * scale + totalOffsetX;
-  //     const initialY = (y - minY - borderWidth / 2) * scale + totalOffsetY;
-
-  //     if (
-  //       pointerX >= initialX &&
-  //       pointerX <= initialX + (sharedItemWidth + borderWidth) * scale &&
-  //       pointerY >= initialY &&
-  //       pointerY <= initialY + (sharedItemHeight + borderWidth) * scale
-  //     ) {
-  //       if (this.hoverList.has(`${type}@${id}`)) {
-  //         break;
-  //       }
-
-  //       this.hoverList.set(`${type}@${id}`, {
-  //         type,
-  //         id,
-  //       });
-
-  //       currentGeometry.hover();
-
-  //       this.updateCanvasByGeometryId(type, id);
-
-  //       break;
-  //     }
-  //   }
-  // }
+  public updateCanvasByGeometryId(geometryType: number, id: number): void {
+    const { minX, minY } = this.whole.getOriginalBoundary();
+    const imageMap = this.geometryManager.getImageMap();
+    const highlightList = this.geometryManager.getHighlightList();
+
+    // let sharedItem = null;
+    let borderWidth = 0;
+    let width = 0;
+    let height = 0;
+
+    let x = 0;
+    let y = 0;
+
+    const originalRectData = this.geometryManager.getOriginalRectList();
+    const originalTextData = this.geometryManager.getOriginalTextList();
+    const originalImageData = this.geometryManager.getOriginalImageList();
+    const originalPathData = this.geometryManager.getOriginalPathList();
+
+    if (geometryType === 0) {
+      const rectItem = <RectProperty>originalRectData.get(id);
+      x = rectItem.x;
+      y = rectItem.y;
+      width = rectItem.width;
+      height = rectItem.height;
+      borderWidth = rectItem.lineWidth ?? 0;
+    } else if (geometryType === 1) {
+      const texItem = <TextProperty>originalTextData.get(id);
+      x = texItem.x;
+      y = texItem.y;
+      width = <number>texItem.width;
+      height = <number>texItem.height;
+    } else if (geometryType === 2) {
+      const imageItem = <ImageProperty>originalImageData.get(id);
+      x = imageItem.x;
+      y = imageItem.y;
+      width = <number>imageItem.width;
+      height = <number>imageItem.height;
+    } else if (geometryType === 3) {
+      const pathItem = <PathProperty>originalPathData.get(id);
+      x = <number>pathItem.x;
+      y = <number>pathItem.y;
+      width = <number>pathItem.width;
+      height = <number>pathItem.height;
+    }
+
+    const blockList = this.region.getRenderingBlockByFilter({ type: geometryType, id });
+
+    for (let i = 0; i < blockList.length; i++) {
+      const blockInfo = blockList[i];
+
+      // const filteredIdList: Array<number> = [];
+      // const filteredTypeList: Array<number> = [];
+
+      blockInfo.addReRender(geometryType, id);
+
+      // canvasArea.idList.forEach((id: number, index: number) => {
+      //   const type = canvasArea.typeList[index];
+      //   if (
+      //     intersect.idList.some((intersectId: number, intersectIndex) => {
+      //       return intersectId === id && intersect.typeList[intersectIndex] === type;
+      //     })
+      //   ) {
+      //     filteredIdList.push(id);
+      //     filteredTypeList.push(type);
+      //   }
+      // });
+
+      // if (filteredIdList.length <= 0) {
+      //   continue;
+      // }
+
+      // const bitmap = this.geometryManager.getCanvasAreaBitmap(level, index);
+
+      // const globalLineCaps = ['butt', 'round', 'square'];
+      // const sideNumber = this.sideNumberOnLevel;
+      // const indexX = index % sideNumber;
+      // const indexY = Math.floor(index / sideNumber);
+      // const realX = (indexX * this.realWidth) / sideNumber;
+      // const realY = (indexY * this.realHeight) / sideNumber;
+      // const realPieceToRenderingScale = sideNumber * this.renderingToRealScale;
+
+      // const offscreenCanvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+      // const ctx = <OffscreenCanvasRenderingContext2D>offscreenCanvas.getContext('2d', {
+      //   willReadFrequently: true,
+      // });
+
+      // ctx.clearRect(0, 0, bitmap.width, bitmap.height);
+
+      // ctx.drawImage(bitmap, 0, 0, bitmap.width, bitmap.height);
+
+      // ctx.save();
+
+      // ctx.scale(realPieceToRenderingScale, realPieceToRenderingScale);
+      // ctx.translate(-(realX + minX + borderWidth / 2), -(realY + minY + borderWidth / 2));
+
+      // ctx.beginPath();
+      // ctx.rect(x, y, width + borderWidth, height + borderWidth);
+      // ctx.clip();
+      // ctx.clearRect(x, y, width + borderWidth, height + borderWidth);
+
+      // for (let i = 0; i < filteredIdList.length; i++) {
+      //   const id = filteredIdList[i];
+      //   const filteredType = filteredTypeList[i];
+
+      //   if (filteredType === 0) {
+      //     const rectItem = <RectProperty>originalRectData.get(id);
+      //     const x = rectItem.x;
+      //     const y = rectItem.y;
+      //     const width = rectItem.width;
+      //     const height = rectItem.height;
+      //     const lineWidth = rectItem.lineWidth ?? 0;
+      //     const fillStyle = rectItem.fillStyle || '';
+      //     const strokeStyle = rectItem.strokeStyle || '';
+      //     const lineDash = rectItem.lineDash || [];
+      //     const type = rectItem.type ?? 0;
+      //     const alpha = rectItem.alpha ?? 1;
+
+      //     ctx.save();
+
+      //     ctx.globalAlpha = alpha;
+      //     ctx.setLineDash(lineDash);
+      //     ctx.fillStyle = fillStyle || '';
+      //     ctx.strokeStyle = strokeStyle || '';
+      //     ctx.lineWidth = lineWidth;
+
+      //     ctx.beginPath();
+      //     ctx.rect(x, y, width, height);
+
+      //     // hover
+      //     if (highlightList.rect.has(id)) {
+      //       // todo more property support
+      //       const highlightProperty = highlightList.rect.get(id);
+      //       if (highlightProperty) {
+      //         ctx.globalAlpha = highlightProperty.alpha || ctx.globalAlpha;
+      //         ctx.strokeStyle = highlightProperty.strokeStyle || ctx.strokeStyle;
+      //         ctx.fillStyle = highlightProperty.fillStyle || ctx.fillStyle;
+      //       }
+      //     }
+
+      //     if (type === 0) {
+      //       ctx.fill();
+      //     } else if (type === 1) {
+      //       ctx.stroke();
+      //     } else if (type === 2) {
+      //       ctx.stroke();
+      //       ctx.fill();
+      //     }
+
+      //     ctx.closePath();
+
+      //     ctx.restore();
+      //   } else if (filteredType === 1) {
+      //     const textItem = <TextProperty>originalTextData.get(id);
+      //     const x = textItem.x;
+      //     const y = textItem.y;
+      //     const alpha = textItem.alpha ?? 1;
+      //     const fontSize = textItem.fontSize;
+      //     const content = textItem.content || '';
+      //     const fillStyle = textItem.fillStyle || '';
+
+      //     // direction?: 'ltr' | 'rtl' | 'inherit';
+
+      //     ctx.save();
+
+      //     ctx.globalAlpha = alpha;
+      //     ctx.fillStyle = fillStyle || '#000';
+
+      //     ctx.font = `${fontSize}px sans-serif`;
+      //     ctx.textAlign = 'center';
+      //     ctx.textBaseline = 'middle';
+      //     ctx.fillText(content, x, y);
+
+      //     ctx.restore();
+      //   } else if (filteredType === 2) {
+      //     const imageItem = <ImageProperty>originalImageData.get(id);
+      //     const x = imageItem.x;
+      //     const y = imageItem.y;
+      //     const alpha = imageItem.alpha ?? 1;
+
+      //     const { width, height, img, hoverImg, checkImg } = imageMap.get(imageItem.imageIndex);
+
+      //     ctx.save();
+
+      //     ctx.globalAlpha = alpha;
+
+      //     let renderingImg = img;
+
+      //     if (highlightList.image.has(id)) {
+      //       // todo more property support
+      //       const highlightProperty = highlightList.image.get(id);
+      //       if (highlightProperty) {
+      //         ctx.globalAlpha = highlightProperty.alpha || ctx.globalAlpha;
+      //         if (highlightProperty.state === 'hover') {
+      //           renderingImg = hoverImg;
+      //         } else if (highlightProperty.state === 'check') {
+      //           renderingImg = checkImg;
+      //         } else {
+      //           renderingImg = img;
+      //         }
+      //       }
+      //     }
+
+      //     ctx.drawImage(renderingImg, x, y, width, height);
+
+      //     // if (state === 1) {
+      //     //   const hoverProperty = serializedData.hoverIdList.get(id);
+      //     //   ctx.globalCompositeOperation = 'source-in';
+      //     //   ctx.fillStyle = hoverProperty.strokeStyle;
+      //     //   ctx.fillRect(x, y, width, height);
+      //     // } else if (state === 2) {
+      //     //   const checkedProperty = serializedData.checkedIdList.get(id);
+      //     //   ctx.globalCompositeOperation = 'source-in';
+      //     //   ctx.fillStyle = checkedProperty.strokeStyle;
+      //     //   ctx.fillRect(x, y, width, height);
+      //     // }
+
+      //     ctx.restore();
+      //   } else if (filteredType === 3) {
+      //     const pathItem = <PathProperty>originalPathData.get(id);
+      //     const alpha = pathItem.alpha ?? 1;
+      //     const fromX = pathItem.fromX;
+      //     const fromY = pathItem.fromY;
+      //     const toX = pathItem.toX;
+      //     const toY = pathItem.toY;
+      //     const lineCap = pathItem.lineCap ?? 0;
+      //     const lineWidth =
+      //       (pathItem.keepWidth
+      //         ? (pathItem?.lineWidth ?? 0) / realPieceToRenderingScale
+      //         : pathItem?.lineWidth ?? 0) || 1;
+      //     const lineDash = pathItem.lineDash || [];
+      //     const strokeStyle = pathItem.strokeStyle || '';
+
+      //     ctx.save();
+
+      //     ctx.beginPath();
+
+      //     ctx.globalAlpha = alpha;
+      //     ctx.setLineDash(lineDash);
+      //     ctx.strokeStyle = strokeStyle || '';
+      //     ctx.lineWidth = lineWidth;
+      //     ctx.lineCap = <CanvasLineCap>globalLineCaps[lineCap];
+
+      //     // hover
+      //     if (highlightList.path.has(id)) {
+      //       // todo more property support
+      //       const highlightProperty = highlightList.path.get(id);
+      //       if (highlightProperty) {
+      //         ctx.globalAlpha = highlightProperty.alpha || ctx.globalAlpha;
+      //         ctx.strokeStyle = highlightProperty.strokeStyle || ctx.strokeStyle;
+      //         ctx.setLineDash(highlightProperty.lineDash || lineDash);
+      //       }
+      //     }
+
+      //     ctx.moveTo(fromX, fromY);
+      //     ctx.lineTo(toX, toY);
+      //     ctx.stroke();
+      //     ctx.closePath();
+
+      //     ctx.restore();
+      //   }
+      // }
+
+      // ctx.restore();
+
+      // // if (this.level === level) {
+      // //   const img = new Image();
+      // //   offscreenCanvas
+      // //     .convertToBlob()
+      // //     .then((data) => {
+      // //       img.src = URL.createObjectURL(data);
+      // //       img.onload = () => {
+      // //         // console.log(chip, scale);
+      // //       };
+      // //     })
+      // //     .catch((e) => {});
+      // // }
+
+      // this.geometryManager.setCanvasArea(level, index, offscreenCanvas);
+    }
+  }
+
+  public updateHover(pointerX: number, pointerY: number) {
+    const {
+      minX: boundaryMinX,
+      minY: boundaryMinY,
+      width,
+      height,
+    } = this.whole.getOriginalBoundary();
+
+    const totalOffsetX =
+      this.renderingOffsetX +
+      ((this.mainCanvas.width - this.initialRenderingWidth) / 2) * this.renderingScale;
+
+    const totalOffsetY =
+      this.renderingOffsetY +
+      ((this.mainCanvas.height - this.initialRenderingHeight) / 2) * this.renderingScale;
+
+    const scale = this.renderingToRealScale * this.renderingScale;
+
+    // deeper level less query
+    const level = this.level > 3 ? this.level : 3;
+    const sideNumber = Util.getSideNumberOnLevel(level);
+
+    const xIndex = Math.floor(((pointerX - totalOffsetX) / (width * scale)) * sideNumber);
+
+    const yIndex = Math.floor(((pointerY - totalOffsetY) / (height * scale)) * sideNumber);
+
+    if (xIndex < 0 || xIndex >= sideNumber || yIndex < 0 || yIndex >= sideNumber) {
+      return;
+    }
+
+    const index = xIndex + yIndex * sideNumber;
+
+    const blockInfo = this.region.getRenderingBlock(level, index);
+
+    const {
+      rect: sharedRect,
+      text: sharedText,
+      image: sharedImage,
+      path: sharedPath,
+    } = this.geometryManager.getSerializedData();
+
+    // origin
+    const originalRectData = this.geometryManager.getOriginalRectList();
+    const originalTextData = this.geometryManager.getOriginalTextList();
+    const originalImageData = this.geometryManager.getOriginalImageList();
+    const originalPathData = this.geometryManager.getOriginalPathList();
+
+    // image map
+    const imageMap = this.geometryManager.getImageMap();
+
+    // remove hover state
+    for (let [key, { type, id }] of this.hoverList) {
+      let minX = 0;
+      let minY = 0;
+      let maxX = 0;
+      let maxY = 0;
+      if (type === 0) {
+        const rect = <RectProperty>originalRectData.get(id);
+        minX = (rect.x - boundaryMinX - (rect.lineWidth ?? 0) / 2) * scale + totalOffsetX;
+        minY = (rect.y - boundaryMinY - (rect.lineWidth ?? 0) / 2) * scale + totalOffsetY;
+        maxX = minX + (rect.width + (rect.lineWidth ?? 0)) * scale;
+        maxY = minY + (rect.height + (rect.lineWidth ?? 0)) * scale;
+      } else if (type === 2) {
+        const image = <ImageProperty>originalImageData.get(id);
+        const { width, height } = imageMap.get(sharedImage.imageIndex[id]);
+
+        minX = (image.x - boundaryMinX) * scale + totalOffsetX;
+        minY = (image.y - boundaryMinY) * scale + totalOffsetY;
+        maxX = minX + width * scale;
+        maxY = minY + height * scale;
+      } else if (type === 3) {
+        const path = originalPathData.get(id);
+        const width = path?.width ?? 0;
+        const height = path?.height ?? 0;
+
+        minX = ((path?.x ?? 0) - boundaryMinX) * scale + totalOffsetX;
+        minY = ((path?.y ?? 0) - boundaryMinY) * scale + totalOffsetY;
+        maxX = minX + width * scale;
+        maxY = minY + height * scale;
+      }
+
+      if (!(pointerX >= minX && pointerX <= maxX && pointerY >= minY && pointerY <= maxY)) {
+        const currentGeometry = this.geometryManager.getOriginalDataByType(type).get(id);
+        this.hoverList.delete(key);
+        currentGeometry.hoverOut?.();
+      }
+    }
+
+    const typeList = blockInfo?.typeList.slice().reverse() ?? [];
+    const idList = blockInfo?.idList.slice().reverse() ?? [];
+
+    for (let i = 0; i < idList.length; i++) {
+      const type = typeList[i];
+      const id = idList[i];
+
+      let sharedItem = null;
+      let borderWidth = 0;
+      let sharedItemWidth = 0;
+      let sharedItemHeight = 0;
+      let x = 0;
+      let y = 0;
+      let originalData = null;
+
+      if (type === 0) {
+        sharedItem = sharedRect;
+        borderWidth = sharedItem.lineWidth[id];
+        sharedItemWidth = sharedItem.width[id];
+        sharedItemHeight = sharedItem.height[id];
+        x = sharedItem.x[id];
+        y = sharedItem.y[id];
+        originalData = originalRectData;
+      } else if (type === 1) {
+        sharedItem = sharedText;
+        sharedItemWidth = sharedItem.width[id];
+        sharedItemHeight = sharedItem.height[id];
+        x = sharedItem.x[id];
+        y = sharedItem.y[id];
+        originalData = originalTextData;
+      } else if (type === 2) {
+        const imageInfo = imageMap.get(sharedImage.imageIndex[id]);
+        sharedItem = sharedImage;
+        sharedItemWidth = imageInfo.width;
+        sharedItemHeight = imageInfo.height;
+        x = sharedItem.x[id];
+        y = sharedItem.y[id];
+        originalData = originalImageData;
+      } else if (type === 3) {
+        sharedItem = sharedPath;
+        sharedItemWidth = originalPathData.get(id)?.width ?? 0;
+        sharedItemHeight = originalPathData.get(id)?.height ?? 0;
+        x = originalPathData.get(id)?.x ?? 0;
+        y = originalPathData.get(id)?.y ?? 0;
+        originalData = originalPathData;
+      }
+
+      const currentGeometry = <any>originalData?.get(id);
+
+      if (!currentGeometry?.hover) {
+        continue;
+      }
+
+      const initialX = (x - boundaryMinX - borderWidth / 2) * scale + totalOffsetX;
+      const initialY = (y - boundaryMinY - borderWidth / 2) * scale + totalOffsetY;
+
+      if (
+        pointerX >= initialX &&
+        pointerX <= initialX + (sharedItemWidth + borderWidth) * scale &&
+        pointerY >= initialY &&
+        pointerY <= initialY + (sharedItemHeight + borderWidth) * scale
+      ) {
+        if (this.hoverList.has(`${type}@${id}`)) {
+          break;
+        }
+
+        this.hoverList.set(`${type}@${id}`, {
+          type,
+          id,
+        });
+
+        currentGeometry.hover();
+
+        break;
+      }
+    }
+  }
 
   // public updateCheck(pointerX: number, pointerY: number, checkType = 'click') {
   //   const { minX, minY, width, height } = this.whole.getOriginalBoundary();
@@ -832,11 +822,7 @@ export default class CanvasManager {
       throttle(
         ({ x, y }: { x: number; y: number }) => {
           if (!this.opLock.hover) {
-            // const hoverNow = Date.now();
-            // this.updateHover(x, y);
-            // if (Date.now() - hoverNow > 2) {
-            //   console.log(Date.now() - hoverNow + 'ms');
-            // }
+            this.updateHover(x, y);
           }
         },
         30,
@@ -985,7 +971,11 @@ export default class CanvasManager {
     return areaList;
   }
 
-  private paintPartCanvas(level: number, pieceIndex: number): void {
+  private paintPartCanvas(
+    level: number,
+    pieceIndex: number,
+    renderType: 'render' | 'rerender' = 'render',
+  ): void {
     const sideNumber = Util.getSideNumberOnLevel(level);
     const xIndex = pieceIndex % sideNumber;
     const yIndex = Math.floor(pieceIndex / sideNumber);
@@ -1006,20 +996,32 @@ export default class CanvasManager {
 
     if (subCanvas) {
       const { minX, minY } = this.whole.getOriginalBoundary();
-      subCanvas.render(
-        paintWidth,
-        paintHeight,
-        offsetX + minX,
-        offsetY + minY,
-        level,
-        pieceIndex,
-        realPieceToRenderingScale,
-      );
+      if (renderType === 'render') {
+        subCanvas.render(
+          paintWidth,
+          paintHeight,
+          offsetX + minX,
+          offsetY + minY,
+          level,
+          pieceIndex,
+          realPieceToRenderingScale,
+        );
+      } else if (renderType === 'rerender') {
+        subCanvas.reRender(
+          paintWidth,
+          paintHeight,
+          offsetX + minX,
+          offsetY + minY,
+          level,
+          pieceIndex,
+          realPieceToRenderingScale,
+        );
+      }
     } else {
       setTimeout(() => {
         // todo check index
         if (this.level === level) {
-          this.paintPartCanvas(level, pieceIndex);
+          this.paintPartCanvas(level, pieceIndex, renderType);
         } else {
           this.region.updateRenderingBlockAttribute(
             level,
@@ -1059,7 +1061,7 @@ export default class CanvasManager {
       const renderingX = (xIndex * this.initialRenderingWidth) / sideNumber;
       const renderingY = (yIndex * this.initialRenderingHeight) / sideNumber;
 
-      if (state === RenderingState.rendered && image) {
+      if ((state === RenderingState.rendered || state === RenderingState.rerendering) && image) {
         this.mainCtx.drawImage(
           image,
           0,
@@ -1074,6 +1076,11 @@ export default class CanvasManager {
           (this.initialRenderingWidth / sideNumber) * renderingScale,
           (this.initialRenderingHeight / sideNumber) * renderingScale,
         );
+        if (state === RenderingState.rerendering) {
+          setTimeout(() => {
+            this.paintPartCanvas(level, pieceIndex, 'rerender');
+          }, 0);
+        }
       }
     }
 

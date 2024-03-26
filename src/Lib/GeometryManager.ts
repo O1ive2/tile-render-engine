@@ -102,6 +102,10 @@ export default class GeometryManager {
       lineWidth: null,
       lineCap: null,
       other: null,
+      x: null,
+      y: null,
+      width: null,
+      height: null,
     },
   };
 
@@ -424,6 +428,12 @@ export default class GeometryManager {
     sharedPath.lineCap = new Uint8Array(new SharedArrayBuffer(pathNumber));
     sharedPath.keepWidth = new Uint8Array(new SharedArrayBuffer(pathNumber));
 
+    sharedPath.x = new Float32Array(new SharedArrayBuffer(pathNumber * 4));
+    sharedPath.y = new Float32Array(new SharedArrayBuffer(pathNumber * 4));
+    sharedPath.width = new Float32Array(new SharedArrayBuffer(pathNumber * 4));
+    sharedPath.height = new Float32Array(new SharedArrayBuffer(pathNumber * 4));
+
+
     const textEncoder = new TextEncoder();
     const encodedData = textEncoder.encode(
       JSON.stringify(
@@ -438,6 +448,10 @@ export default class GeometryManager {
           sharedPath.propertyType[i] = item.propertyType;
           sharedPath.lineCap[i] = item.lineCap;
           sharedPath.keepWidth[i] = item.keepWidth;
+          sharedPath.x[i] = item.x;
+          sharedPath.y[i] = item.y;
+          sharedPath.width[i] = item.width;
+          sharedPath.height[i] = item.height;
 
           return {
             lineDash: item.lineDash,
