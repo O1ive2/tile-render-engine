@@ -34,11 +34,12 @@ export class RenderingBlock {
     y: 0,
   };
 
+  public lock:boolean = false;
   public state: RenderingState = RenderingState.unrendered;
   public image: ImageBitmap | OffscreenCanvas | HTMLCanvasElement | null = null;
   public idList: Uint32Array = new Uint32Array();
   public typeList: Uint8Array = new Uint8Array();
-  public reRenderList: Map<string, { type: number; id: number }> = new Map([]);
+  public reRenderList: Map<string, { type: number; id: number; used: boolean }> = new Map([]);
   public parent: RenderingBlock | null = null;
 
   constructor(level: number, index: number) {
@@ -153,6 +154,7 @@ export class RenderingBlock {
     this.reRenderList.set(`${type}@${id}`, {
       type,
       id,
+      used: false,
     });
     this.state = RenderingState.rerendering;
   }
@@ -225,11 +227,14 @@ export class RenderingRegion {
 
     for (let [key, renderingBlockMap] of this.data) {
       for (let [index, renderingBlock] of renderingBlockMap) {
-        if (
-          renderingBlock.idList.includes(filterOptions.id) &&
-          renderingBlock.typeList.includes(filterOptions.type)
-        ) {
-          filteredList.push(renderingBlock);
+        for (let i = 0; i < renderingBlock.idList.length; i++) {
+          if (
+            renderingBlock.idList[i] === filterOptions.id &&
+            renderingBlock.typeList[i] === filterOptions.type
+          ) {
+            filteredList.push(renderingBlock);
+            break;
+          }
         }
       }
     }

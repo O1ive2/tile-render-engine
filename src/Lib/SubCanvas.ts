@@ -107,6 +107,7 @@ export default class SubCanvas {
             const realPieceToRenderingScale = e.data.realPieceToRenderingScale;
             const image = e.data.image;
 
+
             const level = e.data.level;
             const pieceIndex = e.data.pieceIndex;
 
@@ -209,7 +210,11 @@ export default class SubCanvas {
 
       const globalLineCaps = ['butt', 'round', 'square'];
 
-      for (let [key, { type, id }] of reRenderList) {
+      for (let [key, { type, id, used }] of reRenderList) {
+        if (!used) {
+          continue;
+        }
+
         let borderWidth = 0;
         let x = 0;
         let y = 0;
@@ -300,8 +305,8 @@ export default class SubCanvas {
             )
           ) {
             filteredList.push({
-              id,
-              type,
+              id: containerId,
+              type: containerType,
             });
           }
         }
@@ -317,8 +322,9 @@ export default class SubCanvas {
         ctx.clearRect(x, y, width + borderWidth, height + borderWidth);
 
         for (let i = 0; i < filteredList.length; i++) {
-          const id = idList[i];
-          if (typeList[i] === 0) {
+          const id = filteredList[i].id;
+          const type = filteredList[i].type;
+          if (type === 0) {
             const x = sharedRect.x[id];
             const y = sharedRect.y[id];
             const width = sharedRect.width[id];
@@ -371,7 +377,7 @@ export default class SubCanvas {
             }
 
             ctx.closePath();
-          } else if (typeList[i] === 1) {
+          } else if (type === 1) {
             const x = sharedText.x[id];
             const y = sharedText.y[id];
             const fontSize = sharedText.fontSize[id];
@@ -388,7 +394,7 @@ export default class SubCanvas {
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillText(content, x, y);
-          } else if (typeList[i] === 2) {
+          } else if (type === 2) {
             const { width, height, img, hoverImg, checkImg } = imageMap.get(
               sharedImage.imageIndex[id],
             );
@@ -420,13 +426,16 @@ export default class SubCanvas {
             ctx.drawImage(renderingImg, x, y, width, height);
 
             ctx.restore();
-          } else if (typeList[i] === 3) {
+          } else if (type === 3) {
             const fromX = sharedPath.fromX[id];
             const fromY = sharedPath.fromY[id];
             const toX = sharedPath.toX[id];
             const toY = sharedPath.toY[id];
             const lineCap = sharedPath.lineCap[id] ?? 0;
-            const lineDash = pathOtherList[id].lineDash || [];
+            const lineDash =
+              pathOtherList[id].lineDash?.map(
+                (item: number) => item * realPieceToRenderingScale * 2,
+              ) || [];
             const strokeStyle = pathOtherList[id].strokeStyle || '';
             const alpha = sharedPath.alpha[id] ?? 1;
             const lineWidth = sharedPath.lineWidth[id] || 1;
@@ -450,7 +459,11 @@ export default class SubCanvas {
               if (highlightProperty) {
                 ctx.globalAlpha = highlightProperty.alpha || ctx.globalAlpha;
                 ctx.strokeStyle = highlightProperty.strokeStyle || ctx.strokeStyle;
-                ctx.setLineDash(highlightProperty.lineDash || lineDash);
+                ctx.setLineDash(
+                  highlightProperty.lineDash.map(
+                    (item: number) => item * realPieceToRenderingScale * 2,
+                  ) || lineDash,
+                );
               }
             }
 
@@ -554,9 +567,9 @@ export default class SubCanvas {
           ctx.beginPath();
           ctx.rect(x, y, width, height);
 
-          if (highlightList.rect.has(id)) {
+          if (highlightList.data.get(0).has(id)) {
             // todo more property support
-            const highlightProperty = highlightList.rect.get(id);
+            const highlightProperty = highlightList.data.get(0).get(id);
             if (highlightProperty) {
               ctx.globalAlpha = highlightProperty.alpha || ctx.globalAlpha;
               ctx.strokeStyle = highlightProperty.strokeStyle || ctx.strokeStyle;
@@ -605,9 +618,10 @@ export default class SubCanvas {
 
           let renderingImg = img;
 
-          if (highlightList.image.has(id)) {
+          if (highlightList.data.get(2).has(id)) {
             // todo more property support
-            const highlightProperty = highlightList.image.get(id);
+            const highlightProperty = highlightList.data.get(2).get(id);
+
             if (highlightProperty) {
               ctx.globalAlpha = highlightProperty.alpha || ctx.globalAlpha;
               if (highlightProperty.state === 'hover') {
@@ -629,7 +643,10 @@ export default class SubCanvas {
           const toX = sharedPath.toX[id];
           const toY = sharedPath.toY[id];
           const lineCap = sharedPath.lineCap[id] ?? 0;
-          const lineDash = pathOtherList[id].lineDash || [];
+          const lineDash =
+            pathOtherList[id].lineDash?.map(
+              (item: number) => item * realPieceToRenderingScale * 2,
+            ) || [];
           const strokeStyle = pathOtherList[id].strokeStyle || '';
           const alpha = sharedPath.alpha[id] ?? 1;
           const lineWidth = sharedPath.lineWidth[id] || 1;
@@ -647,13 +664,17 @@ export default class SubCanvas {
           ctx.lineWidth = keepWidth ? lineWidth : lineWidth * realPieceToRenderingScale * 2;
           ctx.lineCap = <CanvasLineCap>globalLineCaps[lineCap];
 
-          if (highlightList.path.has(id)) {
+          if (highlightList.data.get(3).has(id)) {
             // todo more property support
-            const highlightProperty = highlightList.path.get(id);
+            const highlightProperty = highlightList.data.get(3).get(id);
             if (highlightProperty) {
               ctx.globalAlpha = highlightProperty.alpha || ctx.globalAlpha;
               ctx.strokeStyle = highlightProperty.strokeStyle || ctx.strokeStyle;
-              ctx.setLineDash(highlightProperty.lineDash || lineDash);
+              ctx.setLineDash(
+                highlightProperty.lineDash.map(
+                  (item: number) => item * realPieceToRenderingScale * 2,
+                ) || lineDash,
+              );
             }
           }
 
@@ -701,26 +722,33 @@ export default class SubCanvas {
         } else if (e.data.type === 'rerender') {
           const level = e.data.level;
           const pieceIndex = e.data.pieceIndex;
+          const blockInfo = this.region.getRenderingBlock(level, pieceIndex);
+
           this.region.updateRenderingBlockAttribute(level, pieceIndex, 'image', e.data.image);
-          this.region.updateRenderingBlockAttribute(
-            level,
-            pieceIndex,
-            'state',
-            RenderingState.rendered,
-          );
+
+          for (let [id, value] of blockInfo?.reRenderList ?? new Map()) {
+            if (value.used) {
+              blockInfo?.reRenderList.delete(id);
+            }
+          }
+
+          if (blockInfo) {
+            blockInfo.lock = false;
+          }
+
           this.isBusy = false;
 
-          // const imageBitmap = e.data.img;
-          // const canvas = new OffscreenCanvas(imageBitmap.width, imageBitmap.height);
-          // const ctx = canvas.getContext('2d');
+          const imageBitmap = e.data.image;
+          const canvas = new OffscreenCanvas(imageBitmap.width, imageBitmap.height);
+          const ctx = canvas.getContext('2d');
 
-          // ctx?.drawImage(imageBitmap, 0, 0);
+          ctx?.drawImage(imageBitmap, 0, 0);
 
-          // const img = new Image();
+          const img = new Image();
 
-          // canvas.convertToBlob().then((data) => {
-          //   img.src = URL.createObjectURL(data);
-          // });
+          canvas.convertToBlob().then((data) => {
+            img.src = URL.createObjectURL(data);
+          });
         }
       };
 
@@ -766,7 +794,7 @@ export default class SubCanvas {
       offsetY,
       idList: blockInfo.idList,
       typeList: blockInfo.typeList,
-      highlightList: this.geometryManager.getHighlightList(),
+      highlightList: Highlight.from(),
       level,
       pieceIndex,
     });
@@ -783,9 +811,32 @@ export default class SubCanvas {
   ): void {
     const now = Date.now();
 
+    const blockInfo = this.region.getRenderingBlock(level, pieceIndex);
+
     this.isBusy = true;
 
-    const blockInfo = this.region.getRenderingBlock(level, pieceIndex);
+    if (blockInfo?.lock) {
+      setTimeout(() => {
+        this.reRender(
+          width,
+          height,
+          offsetX,
+          offsetY,
+          level,
+          pieceIndex,
+          realPieceToRenderingScale,
+        );
+      }, 0);
+      return;
+    }
+
+    if (blockInfo) {
+      blockInfo.lock = true;
+    }
+
+    blockInfo?.reRenderList.forEach((item) => {
+      item.used = true;
+    });
 
     if (!blockInfo || blockInfo.idList.length <= 0) {
       this.region.updateRenderingBlockAttribute(level, pieceIndex, 'image', null);
