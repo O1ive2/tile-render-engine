@@ -460,7 +460,7 @@ export default class SubCanvas {
                 ctx.globalAlpha = highlightProperty.alpha || ctx.globalAlpha;
                 ctx.strokeStyle = highlightProperty.strokeStyle || ctx.strokeStyle;
                 ctx.setLineDash(
-                  highlightProperty.lineDash.map(
+                  highlightProperty.lineDash?.map(
                     (item: number) => item * realPieceToRenderingScale * 2,
                   ) || lineDash,
                 );
@@ -671,7 +671,7 @@ export default class SubCanvas {
               ctx.globalAlpha = highlightProperty.alpha || ctx.globalAlpha;
               ctx.strokeStyle = highlightProperty.strokeStyle || ctx.strokeStyle;
               ctx.setLineDash(
-                highlightProperty.lineDash.map(
+                highlightProperty.lineDash?.map(
                   (item: number) => item * realPieceToRenderingScale * 2,
                 ) || lineDash,
               );
