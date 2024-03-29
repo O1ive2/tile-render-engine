@@ -1,10 +1,19 @@
-# bug list
+## Usage
 
-1. text intersecting incorrect (OK)
-2. part image load slowly (OK)
-3. line width not same (OK,use beginPath closePath)
-4. smaller scale not clearly
-5. functional lack
-6. move smoothly (OK)
-7. scroll times make op stop
-8. scroll deep make canvas chaos
+```Typescript
+import { Gaia, Paint,RectProperty,TextProperty,ImageProperty,PathProperty, LineCapType } from '@raina/gaia';
+
+// ask maxinyue to get latest json
+import spriteInfo from "@/assets/sprite_mix.json";
+
+const paint: Paint = Gaia.init('#main-canvas') as Paint;
+
+paint.loadImage(spriteInfo).then(() => {
+    paint.drawRect(property:RectProperty);
+    paint.drawText(property:TextProperty);
+    paint.drawImage(property:ImageProperty);
+    paint.drawPath(property:PathProperty);
+})
+
+
+```
