@@ -1,6 +1,6 @@
 const Util = {
   getLevelByScale(scale: number): number {
-    if (scale <= 1) {
+    if (scale <= 4) {
       return 1;
     }
 
@@ -15,27 +15,19 @@ const Util = {
     return exponent + 1;
   },
 
-  convert2Power(num: number) {
-    let cnum = Math.floor(num);
-    let result = 1;
-
-    while (result <= cnum) {
-      result *= 4;
-    }
-
-    return result / 4;
+  getSideNumberOnLevel(level: number) {
+    return 1 << (level * 2 - 1);
   },
 
-  // 判断两个矩形是否相交 x1,y1,x2,y2
-  intersectingWithRect(
-    rectangle1: [number, number, number, number],
-    rectangle2: [number, number, number, number],
+  intersects(
+    range1: { x: number; y: number; width: number; height: number },
+    range2: { x: number; y: number; width: number; height: number },
   ): boolean {
-    return !(
-      rectangle2[0] > rectangle1[2] ||
-      rectangle2[2] < rectangle1[0] ||
-      rectangle2[1] > rectangle1[3] ||
-      rectangle2[3] < rectangle1[1]
+    return (
+      range1.x < range2.x + range2.width &&
+      range1.x + range1.width > range2.x &&
+      range1.y < range2.y + range2.height &&
+      range1.y + range1.height > range2.y
     );
   },
 };
