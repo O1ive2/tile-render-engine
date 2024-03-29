@@ -1,3 +1,4 @@
+// @ts-ignore
 import { IDrawingDataModel } from './CanvasManager';
 
 export default class Calc {
