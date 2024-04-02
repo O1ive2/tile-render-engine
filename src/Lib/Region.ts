@@ -1,15 +1,13 @@
 import {
   GeometryType,
+  IDrawingDataModel,
   ImageProperty,
   PathProperty,
   RectProperty,
   TextProperty,
 } from '../Type/Geometry.type';
-import GeometryManager from './GeometryManager';
 import Util from './Util';
 import { Whole } from './Whole';
-
-const whole: Whole = Whole.from();
 
 export enum RenderingState {
   unrendered,
@@ -21,8 +19,7 @@ export enum RenderingState {
 export type BlockAttribute = 'state' | 'image';
 
 export class RenderingBlock {
-  public renderingRegion: RenderingRegion = RenderingRegion.from();
-  public geometryMgr: GeometryManager = GeometryManager.from();
+  public renderingRegion: RenderingRegion;
 
   public level: number = 0;
   public index: number = 0;
@@ -34,7 +31,7 @@ export class RenderingBlock {
     y: 0,
   };
 
-  public lock:boolean = false;
+  public lock: boolean = false;
   public state: RenderingState = RenderingState.unrendered;
   public image: ImageBitmap | OffscreenCanvas | HTMLCanvasElement | null = null;
   public idList: Uint32Array = new Uint32Array();
@@ -42,7 +39,9 @@ export class RenderingBlock {
   public reRenderList: Map<string, { type: number; id: number; used: boolean }> = new Map([]);
   public parent: RenderingBlock | null = null;
 
-  constructor(level: number, index: number) {
+  constructor(level: number, index: number, renderingRegion: RenderingRegion) {
+    this.renderingRegion = renderingRegion;
+
     const sideNumber = Util.getSideNumberOnLevel(level);
 
     this.level = level;
@@ -55,12 +54,12 @@ export class RenderingBlock {
       minY: originalMinY,
       width: originalWidth,
       height: originalHeight,
-    } = whole.getOriginalBoundary();
+    } = renderingRegion.whole.getOriginalBoundary();
 
     const originalWidthPerPiece = originalWidth / sideNumber;
     const originalHeightPerPiece = originalHeight / sideNumber;
 
-    const geometryData = this.geometryMgr.getOriginalData();
+    const geometryData = <IDrawingDataModel>this.renderingRegion.originalGeometryData;
 
     let idList: Array<number> = [];
     let typeList: Array<number> = [];
@@ -166,11 +165,17 @@ export class RenderingBlock {
 }
 
 export class RenderingRegion {
-  static instance: RenderingRegion;
-
+  public whole: Whole;
+  public originalGeometryData: IDrawingDataModel | null = null;
   public data: Map<number, Map<number, RenderingBlock>> = new Map();
 
-  constructor() {}
+  constructor(whole: Whole) {
+    this.whole = whole;
+  }
+
+  public init(originalGeometryData: IDrawingDataModel) {
+    this.originalGeometryData = originalGeometryData;
+  }
 
   public getParentRenderingBlock(level: number, index: number): RenderingBlock | null {
     const sideNumber = Util.getSideNumberOnLevel(level);
@@ -189,7 +194,7 @@ export class RenderingRegion {
     }
     const renderingBlock = this.data.get(level)?.get(index);
     if (!renderingBlock) {
-      this.setRenderingBlock(level, index, new RenderingBlock(level, index));
+      this.setRenderingBlock(level, index, new RenderingBlock(level, index, this));
       return this.data.get(level)?.get(index) ?? null;
     } else {
       return renderingBlock ?? null;
@@ -209,7 +214,7 @@ export class RenderingRegion {
   public setRenderingBlockByLevel(level: number) {
     const pieceNumber = Util.getSideNumberOnLevel(level) ** 2;
     for (let i = 0; i < pieceNumber; i++) {
-      this.setRenderingBlock(level, i, new RenderingBlock(level, i));
+      this.setRenderingBlock(level, i, new RenderingBlock(level, i, this));
     }
   }
 
@@ -242,10 +247,7 @@ export class RenderingRegion {
     return filteredList;
   }
 
-  static from(): RenderingRegion {
-    if (!this.instance) {
-      this.instance = new RenderingRegion();
-    }
-    return this.instance;
+  static from(whole: Whole): RenderingRegion {
+    return new RenderingRegion(whole);
   }
 }
