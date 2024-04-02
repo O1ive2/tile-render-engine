@@ -18,7 +18,9 @@ paint.loadImage(spriteInfo).then(() => {
     paint.drawPath(property:PathProperty);
 
     // use flush to complete
-    paint.flush();
+    paint.flush().then(() => {
+      // do sth
+    });
 
 
     // highlight geometry
@@ -137,3 +139,13 @@ paint.loadImage(spriteInfo).then(() => {
 
 
 ```
+
+## bugs
+
+1. single instance -> multi instance (OK)
+2. resize fit 
+3. tool bar function extensions
+4. line highlight bold not right
+5. highlight shadow left
+6. highlight support lineWidth property
+7. flush promise (OK)

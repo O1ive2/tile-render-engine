@@ -13,8 +13,8 @@ import { Whole } from './Whole';
 export default class GeometryManager {
   private static mgr: GeometryManager | null = null;
 
-  private whole: Whole = Whole.from();
-  private region: RenderingRegion = RenderingRegion.from();
+  private whole: Whole;
+  private region: RenderingRegion;
 
   private contextHelper = <OffscreenCanvasRenderingContext2D>new OffscreenCanvas(0, 0).getContext(
     '2d',
@@ -109,9 +109,10 @@ export default class GeometryManager {
     },
   };
 
-  private boundary: [number, number, number, number, number, number] = [0, 0, 0, 0, 0, 0];
-
-  constructor() {}
+  constructor(region: RenderingRegion, whole: Whole) {
+    this.region = region;
+    this.whole = whole;
+  }
 
   private isRectPropertyType(obj: any): obj is RectProperty {
     return (
@@ -432,7 +433,6 @@ export default class GeometryManager {
     sharedPath.y = new Float32Array(new SharedArrayBuffer(pathNumber * 4));
     sharedPath.width = new Float32Array(new SharedArrayBuffer(pathNumber * 4));
     sharedPath.height = new Float32Array(new SharedArrayBuffer(pathNumber * 4));
-
 
     const textEncoder = new TextEncoder();
     const encodedData = textEncoder.encode(
@@ -794,6 +794,8 @@ export default class GeometryManager {
 
     this.whole.initOriginalBoundary(this.drawingDataModel);
 
+    this.region.init(this.drawingDataModel);
+
     this.region.setRenderingBlockByLevel(1);
     this.region.setRenderingBlockByLevel(2);
     this.region.setRenderingBlockByLevel(3);
@@ -803,11 +805,7 @@ export default class GeometryManager {
     );
   }
 
-  public static from(): GeometryManager {
-    if (!this.mgr) {
-      this.mgr = new GeometryManager();
-    }
-
-    return this.mgr;
+  public static from(region: RenderingRegion, whole: Whole): GeometryManager {
+    return new GeometryManager(region, whole);
   }
 }

@@ -3,15 +3,18 @@ import GeometryManager from './GeometryManager';
 import { Highlight } from './Highlight';
 import { RenderingRegion, RenderingState } from './Region';
 export default class SubCanvas {
-  private region: RenderingRegion = RenderingRegion.from();
-  private geometryManager: GeometryManager = GeometryManager.from();
+  private region: RenderingRegion;
+  private geometryManager: GeometryManager;
 
   private isBusy = false;
   private isInitialized = false;
   private blob_str: Blob;
   private worker: Worker;
 
-  constructor() {
+  constructor(region: RenderingRegion, geometryManager: GeometryManager) {
+    this.region = region;
+    this.geometryManager = geometryManager;
+
     this.blob_str = new Blob(
       [
         `
@@ -719,6 +722,23 @@ export default class SubCanvas {
             RenderingState.rendered,
           );
           this.isBusy = false;
+
+
+          // const imageBitmap = e.data.image;
+          // const canvas = new OffscreenCanvas(imageBitmap.width, imageBitmap.height);
+          // const ctx = canvas.getContext('2d');
+
+          // ctx?.drawImage(imageBitmap, 0, 0);
+
+          // const img = new Image();
+
+          // canvas.convertToBlob().then((data) => {
+          //   img.src = URL.createObjectURL(data);
+          // });
+
+
+
+
         } else if (e.data.type === 'rerender') {
           const level = e.data.level;
           const pieceIndex = e.data.pieceIndex;
@@ -738,17 +758,6 @@ export default class SubCanvas {
 
           this.isBusy = false;
 
-          const imageBitmap = e.data.image;
-          const canvas = new OffscreenCanvas(imageBitmap.width, imageBitmap.height);
-          const ctx = canvas.getContext('2d');
-
-          ctx?.drawImage(imageBitmap, 0, 0);
-
-          const img = new Image();
-
-          canvas.convertToBlob().then((data) => {
-            img.src = URL.createObjectURL(data);
-          });
         }
       };
 

@@ -5,6 +5,7 @@ class Gaia {
   // initialization
   public static init(canvasId: string): Paint | null {
     const canvas: HTMLCanvasElement | null = document.querySelector(canvasId);
+
     if (canvas) {
       return CanvasManager.from(canvas);
     } else {

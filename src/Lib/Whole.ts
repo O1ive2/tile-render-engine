@@ -94,9 +94,6 @@ export class Whole {
   }
 
   static from(): Whole {
-    if (!this.instance) {
-      this.instance = new Whole();
-    }
-    return this.instance;
+    return new Whole();
   }
 }
