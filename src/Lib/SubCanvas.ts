@@ -460,6 +460,11 @@ export default class SubCanvas {
               // todo more property support
               const highlightProperty = highlightList.data.get(3).get(id);
               if (highlightProperty) {
+                ctx.lineWidth = keepWidth
+                  ? highlightProperty.lineWidth ?? ctx.lineWidth
+                  : highlightProperty.lineWidth
+                  ? ctx.lineWidth * realPieceToRenderingScale * 2
+                  : ctx.lineWidth;
                 ctx.globalAlpha = highlightProperty.alpha || ctx.globalAlpha;
                 ctx.strokeStyle = highlightProperty.strokeStyle || ctx.strokeStyle;
                 ctx.setLineDash(
@@ -671,6 +676,11 @@ export default class SubCanvas {
             // todo more property support
             const highlightProperty = highlightList.data.get(3).get(id);
             if (highlightProperty) {
+              ctx.lineWidth = keepWidth
+                ? highlightProperty.lineWidth ?? ctx.lineWidth
+                : highlightProperty.lineWidth
+                ? ctx.lineWidth * realPieceToRenderingScale * 2
+                : ctx.lineWidth;
               ctx.globalAlpha = highlightProperty.alpha || ctx.globalAlpha;
               ctx.strokeStyle = highlightProperty.strokeStyle || ctx.strokeStyle;
               ctx.setLineDash(
@@ -723,7 +733,6 @@ export default class SubCanvas {
           );
           this.isBusy = false;
 
-
           // const imageBitmap = e.data.image;
           // const canvas = new OffscreenCanvas(imageBitmap.width, imageBitmap.height);
           // const ctx = canvas.getContext('2d');
@@ -735,10 +744,6 @@ export default class SubCanvas {
           // canvas.convertToBlob().then((data) => {
           //   img.src = URL.createObjectURL(data);
           // });
-
-
-
-
         } else if (e.data.type === 'rerender') {
           const level = e.data.level;
           const pieceIndex = e.data.pieceIndex;
@@ -757,7 +762,6 @@ export default class SubCanvas {
           }
 
           this.isBusy = false;
-
         }
       };
 
