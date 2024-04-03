@@ -266,8 +266,7 @@ export default class SubCanvas {
 
           if (containerType === 0) {
             containerBorderWidth =
-              sharedRect.type[containerId] === RectType.stroke ||
-              sharedRect.type[containerId] === RectType.fillAndStroke
+              sharedRect.type[containerId] === 1 || sharedRect.type[containerId] === 2
                 ? sharedRect.lineWidth[containerId]
                 : 0;
             containerX = sharedRect.x[containerId] - containerBorderWidth / 2;
