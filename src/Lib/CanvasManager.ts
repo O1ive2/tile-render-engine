@@ -16,8 +16,8 @@ export default class CanvasManager {
   private canvasCache: Array<Array<any>> = [];
   private renderList: Array<{ x: number; y: number; bitmap: any }> = [];
 
-  private whole: Whole = Whole.from();
-  private region: RenderingRegion = RenderingRegion.from();
+  private whole: Whole;
+  private region: RenderingRegion;
 
   // Initial Rendering W H Scale
   private initialRenderingWidth = 0;
@@ -46,16 +46,27 @@ export default class CanvasManager {
     return 2 << (this.level * 2);
   }
 
-  private geometryManager: GeometryManager = GeometryManager.from();
+  private geometryManager: GeometryManager;
 
   private hoverList: Map<string, { id: number; type: number }> = new Map();
 
-  constructor(canvas: HTMLCanvasElement) {
+  constructor(
+    canvas: HTMLCanvasElement,
+    geometryManager: GeometryManager,
+    region: RenderingRegion,
+    whole: Whole,
+  ) {
     this.mainCanvas = canvas;
     this.mainCtx = <CanvasRenderingContext2D>canvas.getContext('2d', {
       willReadFrequently: true,
     });
-    this.subCanvasList = Array.from({ length: maxThreads }, () => new SubCanvas());
+    this.whole = whole;
+    this.region = region;
+    this.geometryManager = geometryManager;
+    this.subCanvasList = Array.from(
+      { length: maxThreads },
+      () => new SubCanvas(this.region, this.geometryManager),
+    );
   }
 
   public getSubCanvasList(): Array<SubCanvas> {
@@ -99,7 +110,6 @@ export default class CanvasManager {
     const xIndex = Math.floor(((pointerX - totalOffsetX) / (width * scale)) * sideNumber);
 
     const yIndex = Math.floor(((pointerY - totalOffsetY) / (height * scale)) * sideNumber);
-
 
     const index = xIndex + yIndex * sideNumber;
 
@@ -266,7 +276,6 @@ export default class CanvasManager {
     const xIndex = Math.floor(((pointerX - totalOffsetX) / (width * scale)) * sideNumber);
 
     const yIndex = Math.floor(((pointerY - totalOffsetY) / (height * scale)) * sideNumber);
-
 
     const index = xIndex + yIndex * sideNumber;
 
@@ -532,7 +541,7 @@ export default class CanvasManager {
         (transform: any) => {
           lockTimer && clearTimeout(lockTimer);
           this.opLock.hover = true;
-          this.opLock.click = true;
+          // this.opLock.click = true;
           this.updateTransform(transform);
           this.render(true);
         },
@@ -545,7 +554,7 @@ export default class CanvasManager {
       () => {
         lockTimer = setTimeout(() => {
           this.opLock.hover = false;
-          this.opLock.click = false;
+          // this.opLock.click = false;
         }, 0);
       },
     );
@@ -567,21 +576,21 @@ export default class CanvasManager {
     );
 
     this.on('click', ({ x, y }: { x: number; y: number }) => {
-      if (!this.opLock.click) {
-        this.updateCheck(x, y, 'click');
-      }
+      // if (!this.opLock.click) {
+      this.updateCheck(x, y, 'click');
+      // }
     });
 
     this.on('rclick', ({ x, y }: { x: number; y: number }) => {
-      if (!this.opLock.click) {
-        this.updateCheck(x, y, 'rclick');
-      }
+      // if (!this.opLock.click) {
+      this.updateCheck(x, y, 'rclick');
+      // }
     });
 
     this.on('dbclick', ({ x, y }: { x: number; y: number }) => {
-      if (!this.opLock.click) {
-        this.updateCheck(x, y, 'dbclick');
-      }
+      // if (!this.opLock.click) {
+      this.updateCheck(x, y, 'dbclick');
+      // }
     });
 
     this.render();
@@ -832,6 +841,12 @@ export default class CanvasManager {
   }
 
   public static from(canvasDom: HTMLCanvasElement): Paint {
-    return Paint.from(new CanvasManager(canvasDom));
+    const whole = Whole.from();
+    const region = RenderingRegion.from(whole);
+    const geometryManager = GeometryManager.from(region, whole);
+    return Paint.from(
+      new CanvasManager(canvasDom, geometryManager, region, whole),
+      geometryManager,
+    );
   }
 }

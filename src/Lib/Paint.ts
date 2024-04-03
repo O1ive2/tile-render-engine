@@ -5,10 +5,11 @@ import { Highlight } from './Highlight';
 
 export default class Paint {
   private canvasManager: CanvasManager;
-  private geometryManager: GeometryManager = GeometryManager.from();
+  private geometryManager: GeometryManager;
 
-  constructor(canvasManager: CanvasManager) {
+  constructor(canvasManager: CanvasManager, geometryManager: GeometryManager) {
     this.canvasManager = canvasManager;
+    this.geometryManager = geometryManager;
   }
 
   public drawRect(rectProperty: RectProperty): void {
@@ -60,13 +61,16 @@ export default class Paint {
     });
   }
 
-  public flush() {
-    this.geometryManager.flush(this.canvasManager).then(() => {
-      this.canvasManager.flush();
+  public flush(): Promise<void> {
+    return new Promise((resolve) => {
+      this.geometryManager.flush(this.canvasManager).then(() => {
+        this.canvasManager.flush();
+        resolve();
+      });
     });
   }
 
-  public static from(canvasManager: CanvasManager): Paint {
-    return new Paint(canvasManager);
+  public static from(canvasManager: CanvasManager, geometryManager: GeometryManager): Paint {
+    return new Paint(canvasManager, geometryManager);
   }
 }
