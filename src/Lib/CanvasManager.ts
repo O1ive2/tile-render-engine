@@ -541,7 +541,7 @@ export default class CanvasManager {
         (transform: any) => {
           lockTimer && clearTimeout(lockTimer);
           this.opLock.hover = true;
-          this.opLock.click = true;
+          // this.opLock.click = true;
           this.updateTransform(transform);
           this.render(true);
         },
@@ -554,7 +554,7 @@ export default class CanvasManager {
       () => {
         lockTimer = setTimeout(() => {
           this.opLock.hover = false;
-          this.opLock.click = false;
+          // this.opLock.click = false;
         }, 0);
       },
     );
@@ -576,21 +576,21 @@ export default class CanvasManager {
     );
 
     this.on('click', ({ x, y }: { x: number; y: number }) => {
-      if (!this.opLock.click) {
-        this.updateCheck(x, y, 'click');
-      }
+      // if (!this.opLock.click) {
+      this.updateCheck(x, y, 'click');
+      // }
     });
 
     this.on('rclick', ({ x, y }: { x: number; y: number }) => {
-      if (!this.opLock.click) {
-        this.updateCheck(x, y, 'rclick');
-      }
+      // if (!this.opLock.click) {
+      this.updateCheck(x, y, 'rclick');
+      // }
     });
 
     this.on('dbclick', ({ x, y }: { x: number; y: number }) => {
-      if (!this.opLock.click) {
-        this.updateCheck(x, y, 'dbclick');
-      }
+      // if (!this.opLock.click) {
+      this.updateCheck(x, y, 'dbclick');
+      // }
     });
 
     this.render();
