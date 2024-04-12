@@ -12,6 +12,10 @@ export default class Paint {
     this.geometryManager = geometryManager;
   }
 
+  public zoom(): void {
+    
+  }
+
   public drawRect(rectProperty: RectProperty): void {
     this.geometryManager.collectRect(rectProperty);
   }
