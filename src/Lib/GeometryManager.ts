@@ -65,6 +65,7 @@ export default class GeometryManager {
       alpha: null,
       zIndex: null,
       propertyType: null,
+      keepWidth: null,
       lineWidth: null,
       other: null,
       style: null,
@@ -99,6 +100,7 @@ export default class GeometryManager {
       alpha: null,
       zIndex: null,
       propertyType: null,
+      keepWidth: null,
       lineWidth: null,
       lineCap: null,
       other: null,
@@ -311,6 +313,7 @@ export default class GeometryManager {
     sharedRect.lineWidth = new Uint16Array(new SharedArrayBuffer(rectNumber * 2));
     sharedRect.zIndex = new Uint32Array(new SharedArrayBuffer(rectNumber * 4));
     sharedRect.propertyType = new Uint8Array(new SharedArrayBuffer(rectNumber));
+    sharedRect.keepWidth = new Uint8Array(new SharedArrayBuffer(rectNumber));
 
     // sharedRect.style = new Uint8Array((rectNumber * 256));
 
@@ -327,6 +330,7 @@ export default class GeometryManager {
           sharedRect.lineWidth[i] = item.lineWidth;
           sharedRect.zIndex[i] = item.zIndex;
           sharedRect.propertyType[i] = item.propertyType;
+          sharedRect.keepWidth[i] = item.keepWidth;
 
           return {
             lineDash: item.lineDash,

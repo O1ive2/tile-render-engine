@@ -31,6 +31,7 @@ export type RectProperty = {
   height: number;
   fillStyle?: string | CanvasGradient | CanvasPattern;
   strokeStyle?: string | CanvasGradient | CanvasPattern;
+  keepWidth?: 0 | 1;
   lineWidth?: number;
   type?: RectType;
   lineDash?: Array<number>;
