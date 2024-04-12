@@ -452,7 +452,7 @@ export default class SubCanvas {
             ctx.globalAlpha = alpha;
             ctx.setLineDash(lineDash);
             ctx.strokeStyle = strokeStyle || '';
-            ctx.lineWidth = keepWidth ? lineWidth : lineWidth * realPieceToRenderingScale * 2;
+            ctx.lineWidth = keepWidth ? lineWidth * 4 : lineWidth * realPieceToRenderingScale * 2;
             ctx.lineCap = <CanvasLineCap>globalLineCaps[lineCap];
 
             if (highlightList.data.get(3).has(id)) {
@@ -460,7 +460,7 @@ export default class SubCanvas {
               const highlightProperty = highlightList.data.get(3).get(id);
               if (highlightProperty) {
                 ctx.lineWidth = keepWidth
-                  ? highlightProperty.lineWidth ?? ctx.lineWidth
+                  ? highlightProperty.lineWidth * 4 ?? ctx.lineWidth
                   : highlightProperty.lineWidth
                   ? ctx.lineWidth * realPieceToRenderingScale * 2
                   : ctx.lineWidth;
@@ -668,7 +668,7 @@ export default class SubCanvas {
           ctx.globalAlpha = alpha;
           ctx.setLineDash(lineDash);
           ctx.strokeStyle = strokeStyle || '';
-          ctx.lineWidth = keepWidth ? lineWidth : lineWidth * realPieceToRenderingScale * 2;
+          ctx.lineWidth = keepWidth ? lineWidth * 4 : lineWidth * realPieceToRenderingScale * 2;
           ctx.lineCap = <CanvasLineCap>globalLineCaps[lineCap];
 
           if (highlightList.data.get(3).has(id)) {
@@ -676,7 +676,7 @@ export default class SubCanvas {
             const highlightProperty = highlightList.data.get(3).get(id);
             if (highlightProperty) {
               ctx.lineWidth = keepWidth
-                ? highlightProperty.lineWidth ?? ctx.lineWidth
+                ? highlightProperty.lineWidth * 4 ?? ctx.lineWidth
                 : highlightProperty.lineWidth
                 ? ctx.lineWidth * realPieceToRenderingScale * 2
                 : ctx.lineWidth;
