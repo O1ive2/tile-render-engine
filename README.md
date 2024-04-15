@@ -151,3 +151,4 @@ paint.loadImage(spriteInfo).then(() => {
 7. flush promise (OK)
 8. click sometime not work (OK)
 9. destroy callback
+10. rect boundary cut by block

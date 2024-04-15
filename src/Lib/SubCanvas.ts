@@ -337,6 +337,7 @@ export default class SubCanvas {
             const lineWidth = sharedRect.lineWidth[id] || 1;
             const type = sharedRect.type[id] ?? 0;
             const alpha = sharedRect.alpha[id] ?? 1;
+            const keepWidth = sharedRect.keepWidth[id] ?? 0;
 
             // const styleIndex = id * 256;
             // const encodedDataLength = sharedRect.style[styleIndex];
@@ -354,7 +355,7 @@ export default class SubCanvas {
             ctx.setLineDash(lineDash);
             ctx.fillStyle = fillStyle || '';
             ctx.strokeStyle = strokeStyle || '';
-            ctx.lineWidth = lineWidth;
+            ctx.lineWidth = keepWidth ? (lineWidth / realPieceToRenderingScale) * 2 : lineWidth;
 
             ctx.beginPath();
             ctx.rect(x, y, width, height);
@@ -452,7 +453,7 @@ export default class SubCanvas {
             ctx.globalAlpha = alpha;
             ctx.setLineDash(lineDash);
             ctx.strokeStyle = strokeStyle || '';
-            ctx.lineWidth = keepWidth ? lineWidth : lineWidth * realPieceToRenderingScale * 2;
+            ctx.lineWidth = keepWidth ? lineWidth * 4 : lineWidth * realPieceToRenderingScale * 2;
             ctx.lineCap = <CanvasLineCap>globalLineCaps[lineCap];
 
             if (highlightList.data.get(3).has(id)) {
@@ -460,7 +461,7 @@ export default class SubCanvas {
               const highlightProperty = highlightList.data.get(3).get(id);
               if (highlightProperty) {
                 ctx.lineWidth = keepWidth
-                  ? highlightProperty.lineWidth ?? ctx.lineWidth
+                  ? highlightProperty.lineWidth * 4 ?? ctx.lineWidth
                   : highlightProperty.lineWidth
                   ? ctx.lineWidth * realPieceToRenderingScale * 2
                   : ctx.lineWidth;
@@ -552,6 +553,7 @@ export default class SubCanvas {
           const lineWidth = sharedRect.lineWidth[id] || 1;
           const type = sharedRect.type[id] ?? 0;
           const alpha = sharedRect.alpha[id] ?? 1;
+          const keepWidth = sharedRect.keepWidth[id] ?? 0;
 
           // const styleIndex = id * 256;
           // const encodedDataLength = sharedRect.style[styleIndex];
@@ -569,7 +571,7 @@ export default class SubCanvas {
           ctx.setLineDash(lineDash);
           ctx.fillStyle = fillStyle || '';
           ctx.strokeStyle = strokeStyle || '';
-          ctx.lineWidth = lineWidth;
+          ctx.lineWidth = keepWidth ? (lineWidth / realPieceToRenderingScale) * 2 : lineWidth;
 
           ctx.beginPath();
           ctx.rect(x, y, width, height);
@@ -668,7 +670,7 @@ export default class SubCanvas {
           ctx.globalAlpha = alpha;
           ctx.setLineDash(lineDash);
           ctx.strokeStyle = strokeStyle || '';
-          ctx.lineWidth = keepWidth ? lineWidth : lineWidth * realPieceToRenderingScale * 2;
+          ctx.lineWidth = keepWidth ? lineWidth * 4 : lineWidth * realPieceToRenderingScale * 2;
           ctx.lineCap = <CanvasLineCap>globalLineCaps[lineCap];
 
           if (highlightList.data.get(3).has(id)) {
@@ -676,7 +678,7 @@ export default class SubCanvas {
             const highlightProperty = highlightList.data.get(3).get(id);
             if (highlightProperty) {
               ctx.lineWidth = keepWidth
-                ? highlightProperty.lineWidth ?? ctx.lineWidth
+                ? highlightProperty.lineWidth * 4 ?? ctx.lineWidth
                 : highlightProperty.lineWidth
                 ? ctx.lineWidth * realPieceToRenderingScale * 2
                 : ctx.lineWidth;

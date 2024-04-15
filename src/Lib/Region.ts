@@ -96,8 +96,10 @@ export class RenderingBlock {
 
       if (type === GeometryType.rect) {
         item = <RectProperty>geometryData.rect.get(id);
-        selfWidth = item.width;
-        selfHeight = item.height;
+        selfWidth = item.width + (item.lineWidth ?? 0) * 2;
+        selfHeight = item.height + (item.lineWidth ?? 0) * 2;
+        selfOffsetX = -(item.lineWidth ?? 0);
+        selfOffsetY = -(item.lineWidth ?? 0);
       } else if (type === GeometryType.text) {
         item = <TextProperty>geometryData.text.get(id);
         selfOffsetX = -(item?.width ?? 0) / 2;
