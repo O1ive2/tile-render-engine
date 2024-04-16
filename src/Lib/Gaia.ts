@@ -7,7 +7,7 @@ class Gaia {
     const canvas: HTMLCanvasElement | null = document.querySelector(canvasId);
 
     if (canvas) {
-      return CanvasManager.from(canvas);
+      return CanvasManager.from(canvasId, canvas);
     } else {
       return null;
     }

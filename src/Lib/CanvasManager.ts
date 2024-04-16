@@ -1,14 +1,15 @@
 import throttle from 'lodash/throttle';
 import { ImageProperty, RectProperty } from '../Type/Geometry.type';
-import { maxThreads } from '../config';
 import GeometryManager from './GeometryManager';
 import Paint from './Paint';
 import { RenderingBlock, RenderingRegion, RenderingState } from './Region';
 import SubCanvas from './SubCanvas';
+import SubCanvasManager from './SubCanvasManager';
 import Util from './Util';
 import { Whole } from './Whole';
 
 export default class CanvasManager {
+  private id: string;
   private level: number = 1;
   private mainCanvas: HTMLCanvasElement;
   private mainCtx: CanvasRenderingContext2D;
@@ -51,11 +52,13 @@ export default class CanvasManager {
   private hoverList: Map<string, { id: number; type: number }> = new Map();
 
   constructor(
+    id: string,
     canvas: HTMLCanvasElement,
     geometryManager: GeometryManager,
     region: RenderingRegion,
     whole: Whole,
   ) {
+    this.id = id;
     this.mainCanvas = canvas;
     this.mainCtx = <CanvasRenderingContext2D>canvas.getContext('2d', {
       willReadFrequently: true,
@@ -63,10 +66,8 @@ export default class CanvasManager {
     this.whole = whole;
     this.region = region;
     this.geometryManager = geometryManager;
-    this.subCanvasList = Array.from(
-      { length: maxThreads },
-      () => new SubCanvas(this.region, this.geometryManager),
-    );
+
+    this.subCanvasList = SubCanvasManager.from(region).getSubCanvasList();
   }
 
   public getSubCanvasList(): Array<SubCanvas> {
@@ -740,6 +741,7 @@ export default class CanvasManager {
       const { minX, minY } = this.whole.getOriginalBoundary();
       if (renderType === 'render') {
         subCanvas.render(
+          this.id,
           paintWidth,
           paintHeight,
           offsetX + minX,
@@ -750,6 +752,7 @@ export default class CanvasManager {
         );
       } else if (renderType === 'rerender') {
         subCanvas.reRender(
+          this.id,
           paintWidth,
           paintHeight,
           offsetX + minX,
@@ -840,12 +843,12 @@ export default class CanvasManager {
     }
   }
 
-  public static from(canvasDom: HTMLCanvasElement): Paint {
+  public static from(id: string, canvasDom: HTMLCanvasElement): Paint {
     const whole = Whole.from();
     const region = RenderingRegion.from(whole);
-    const geometryManager = GeometryManager.from(region, whole);
+    const geometryManager = GeometryManager.from(id, region, whole);
     return Paint.from(
-      new CanvasManager(canvasDom, geometryManager, region, whole),
+      new CanvasManager(id, canvasDom, geometryManager, region, whole),
       geometryManager,
     );
   }

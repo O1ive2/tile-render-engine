@@ -11,8 +11,7 @@ import { RenderingRegion } from './Region';
 import Util from './Util';
 import { Whole } from './Whole';
 export default class GeometryManager {
-  private static mgr: GeometryManager | null = null;
-
+  private id: string;
   private whole: Whole;
   private region: RenderingRegion;
 
@@ -111,7 +110,8 @@ export default class GeometryManager {
     },
   };
 
-  constructor(region: RenderingRegion, whole: Whole) {
+  constructor(id: string, region: RenderingRegion, whole: Whole) {
+    this.id = id;
     this.region = region;
     this.whole = whole;
   }
@@ -805,11 +805,13 @@ export default class GeometryManager {
     this.region.setRenderingBlockByLevel(3);
 
     await Promise.all(
-      canvasManager.getSubCanvasList().map((subCanvas) => subCanvas.init(sharedImageMap)),
+      canvasManager
+        .getSubCanvasList()
+        .map((subCanvas) => subCanvas.init(this, this.id, sharedImageMap)),
     );
   }
 
-  public static from(region: RenderingRegion, whole: Whole): GeometryManager {
-    return new GeometryManager(region, whole);
+  public static from(id: string, region: RenderingRegion, whole: Whole): GeometryManager {
+    return new GeometryManager(id, region, whole);
   }
 }

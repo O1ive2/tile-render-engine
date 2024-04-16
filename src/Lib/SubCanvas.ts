@@ -4,16 +4,14 @@ import { Highlight } from './Highlight';
 import { RenderingRegion, RenderingState } from './Region';
 export default class SubCanvas {
   private region: RenderingRegion;
-  private geometryManager: GeometryManager;
 
   private isBusy = false;
   private isInitialized = false;
   private blob_str: Blob;
   private worker: Worker;
 
-  constructor(region: RenderingRegion, geometryManager: GeometryManager) {
+  constructor(region: RenderingRegion) {
     this.region = region;
-    this.geometryManager = geometryManager;
 
     this.blob_str = new Blob(
       [
@@ -22,24 +20,21 @@ export default class SubCanvas {
         const rerender = ${this.retReRender()}
         const parseImage = ${this.retParseImage()}
 
-        let shared = null;
         let imageMap = new Map();
-
-        let rectOtherList = null;
-        let textOtherList = null;
-        let pathOtherList = null;
+        let shared = new Map();
 
         self.onmessage = async (e) => {
           if(e.data.type === 'init') {
-            shared = e.data.shared;
+            const sharedData = e.data.shared;
             const imageMapStr = e.data.sharedImageMap;
 
             const textDecoder = new TextDecoder();
 
-            rectOtherList = JSON.parse(textDecoder.decode(new Uint8Array(shared.rect.other)));
-            textOtherList = JSON.parse(textDecoder.decode(new Uint8Array(shared.text.other)));
-            pathOtherList = JSON.parse(textDecoder.decode(new Uint8Array(shared.path.other)));
-      
+            sharedData.rect.other = JSON.parse(textDecoder.decode(new Uint8Array(sharedData.rect.other)));
+            sharedData.text.other = JSON.parse(textDecoder.decode(new Uint8Array(sharedData.text.other)));
+            sharedData.path.other = JSON.parse(textDecoder.decode(new Uint8Array(sharedData.path.other)));
+
+            shared.set(e.data.id,sharedData);
 
             const sharedImageMapData = new Uint8Array(imageMapStr);
             const sharedImageMap = JSON.parse(textDecoder.decode(sharedImageMapData));
@@ -82,7 +77,7 @@ export default class SubCanvas {
             ctx.rect(0,0,canvas.width,canvas.height);
             ctx.clip();
 
-            render(ctx,width,height,shared,idList,typeList,highlightList,imageMap,offsetX,offsetY,realPieceToRenderingScale,rectOtherList,textOtherList,pathOtherList);
+            render(ctx,width,height,shared.get(e.data.id),idList,typeList,highlightList,imageMap,offsetX,offsetY,realPieceToRenderingScale);
             
             ctx.restore();
 
@@ -127,7 +122,7 @@ export default class SubCanvas {
 
             ctx.drawImage(image,0,0);
 
-            rerender(ctx,width,height,shared,idList,typeList,reRenderList,highlightList,imageMap,offsetX,offsetY,realPieceToRenderingScale,rectOtherList,textOtherList,pathOtherList);
+            rerender(ctx,width,height,shared.get(e.data.id),idList,typeList,reRenderList,highlightList,imageMap,offsetX,offsetY,realPieceToRenderingScale);
 
             ctx.restore();
 
@@ -190,9 +185,6 @@ export default class SubCanvas {
       offsetX: number,
       offsetY: number,
       realPieceToRenderingScale: number,
-      rectOtherList: any,
-      textOtherList: any,
-      pathOtherList: any,
     ) => {
       const intersects = (
         range1: { x: number; y: number; width: number; height: number },
@@ -331,9 +323,9 @@ export default class SubCanvas {
             const y = sharedRect.y[id];
             const width = sharedRect.width[id];
             const height = sharedRect.height[id];
-            const fillStyle = rectOtherList[id].fillStyle || '';
-            const strokeStyle = rectOtherList[id].strokeStyle || '';
-            const lineDash = rectOtherList[id].lineDash || [];
+            const fillStyle = sharedRect.other[id].fillStyle || '';
+            const strokeStyle = sharedRect.other[id].strokeStyle || '';
+            const lineDash = sharedRect.other[id].lineDash || [];
             const lineWidth = sharedRect.lineWidth[id] || 1;
             const type = sharedRect.type[id] ?? 0;
             const alpha = sharedRect.alpha[id] ?? 1;
@@ -384,8 +376,8 @@ export default class SubCanvas {
             const x = sharedText.x[id];
             const y = sharedText.y[id];
             const fontSize = sharedText.fontSize[id];
-            const content = textOtherList[id].content || '';
-            const fillStyle = textOtherList[id].fillStyle || '';
+            const content = sharedText.other[id].content || '';
+            const fillStyle = sharedText.other[id].fillStyle || '';
             const alpha = sharedText.alpha[id] ?? 1;
 
             // direction?: 'ltr' | 'rtl' | 'inherit';
@@ -436,10 +428,10 @@ export default class SubCanvas {
             const toY = sharedPath.toY[id];
             const lineCap = sharedPath.lineCap[id] ?? 0;
             const lineDash =
-              pathOtherList[id].lineDash?.map(
+              sharedPath.other[id].lineDash?.map(
                 (item: number) => item * realPieceToRenderingScale * 2,
               ) || [];
-            const strokeStyle = pathOtherList[id].strokeStyle || '';
+            const strokeStyle = sharedPath.other[id].strokeStyle || '';
             const alpha = sharedPath.alpha[id] ?? 1;
             const lineWidth = sharedPath.lineWidth[id] || 1;
             const keepWidth = sharedPath.keepWidth[id];
@@ -513,9 +505,6 @@ export default class SubCanvas {
       offsetX: number,
       offsetY: number,
       realPieceToRenderingScale: number,
-      rectOtherList: any,
-      textOtherList: any,
-      pathOtherList: any,
     ) => {
       // const now = Date.now();
 
@@ -547,9 +536,9 @@ export default class SubCanvas {
           const y = sharedRect.y[id];
           const width = sharedRect.width[id];
           const height = sharedRect.height[id];
-          const fillStyle = rectOtherList[id].fillStyle || '';
-          const strokeStyle = rectOtherList[id].strokeStyle || '';
-          const lineDash = rectOtherList[id].lineDash || [];
+          const fillStyle = sharedRect.other[id].fillStyle || '';
+          const strokeStyle = sharedRect.other[id].strokeStyle || '';
+          const lineDash = sharedRect.other[id].lineDash || [];
           const lineWidth = sharedRect.lineWidth[id] || 1;
           const type = sharedRect.type[id] ?? 0;
           const alpha = sharedRect.alpha[id] ?? 1;
@@ -600,8 +589,8 @@ export default class SubCanvas {
           const x = sharedText.x[id];
           const y = sharedText.y[id];
           const fontSize = sharedText.fontSize[id];
-          const content = textOtherList[id].content || '';
-          const fillStyle = textOtherList[id].fillStyle || '';
+          const content = sharedText.other[id].content || '';
+          const fillStyle = sharedText.other[id].fillStyle || '';
           const alpha = sharedText.alpha[id] ?? 1;
 
           // direction?: 'ltr' | 'rtl' | 'inherit';
@@ -653,10 +642,10 @@ export default class SubCanvas {
           const toY = sharedPath.toY[id];
           const lineCap = sharedPath.lineCap[id] ?? 0;
           const lineDash =
-            pathOtherList[id].lineDash?.map(
+            sharedPath.other[id].lineDash?.map(
               (item: number) => item * realPieceToRenderingScale * 2,
             ) || [];
-          const strokeStyle = pathOtherList[id].strokeStyle || '';
+          const strokeStyle = sharedPath.other[id].strokeStyle || '';
           const alpha = sharedPath.alpha[id] ?? 1;
           const lineWidth = sharedPath.lineWidth[id] || 1;
           const keepWidth = sharedPath.keepWidth[id];
@@ -716,7 +705,11 @@ export default class SubCanvas {
     };
   };
 
-  public init(sharedImageMap: Uint8Array): Promise<void> {
+  public init(
+    geometryManager: GeometryManager,
+    id: string,
+    sharedImageMap: Uint8Array,
+  ): Promise<void> {
     return new Promise(async (resolve, reject) => {
       this.worker.onmessage = (e) => {
         if (e.data.type === 'init') {
@@ -768,13 +761,15 @@ export default class SubCanvas {
 
       this.worker.postMessage({
         type: 'init',
-        shared: this.geometryManager.getSerializedData(),
+        id,
+        shared: geometryManager.getSerializedData(),
         sharedImageMap,
       });
     });
   }
 
   public render(
+    id: string,
     width: number,
     height: number,
     offsetX: number,
@@ -801,6 +796,7 @@ export default class SubCanvas {
 
     this.worker.postMessage({
       type: 'render',
+      id,
       width,
       height,
       realPieceToRenderingScale,
@@ -815,6 +811,7 @@ export default class SubCanvas {
   }
 
   public reRender(
+    id: string,
     width: number,
     height: number,
     offsetX: number,
@@ -832,6 +829,7 @@ export default class SubCanvas {
     if (blockInfo?.lock) {
       setTimeout(() => {
         this.reRender(
+          id,
           width,
           height,
           offsetX,
@@ -867,6 +865,7 @@ export default class SubCanvas {
     this.worker.postMessage(
       {
         type: 'rerender',
+        id,
         width,
         height,
         realPieceToRenderingScale,
