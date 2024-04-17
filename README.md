@@ -17,6 +17,9 @@ paint.loadImage(spriteInfo).then(() => {
     paint.drawImage(property:ImageProperty);
     paint.drawPath(property:PathProperty);
 
+    // zoom
+    paint.zoom(id, scale);
+
     // use flush to complete
     paint.flush().then(() => {
       // do sth

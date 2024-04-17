@@ -12,8 +12,25 @@ export default class Paint {
     this.geometryManager = geometryManager;
   }
 
-  public zoom(): void {
-    
+  public zoom(id: string, scale: number): void {
+    // 获取当前画布
+    const canvas = document.getElementById(id) as HTMLCanvasElement;
+    // 当前画布宽高
+    const originWidth = canvas.width;
+    const originHeight = canvas.height;
+    // 缩放后画布宽高
+    const newWidth = originWidth * scale;
+    const newHeight = originHeight * scale;
+    // 缩放后画布偏移量
+    const offsetX = (newWidth - originWidth) / 2;
+    const offsetY = (newHeight - originHeight) / 2;
+
+    const context = canvas.getContext('2d');
+    context?.clearRect(0, 0, originWidth, originHeight);
+    context?.translate(-offsetX, -offsetY);
+    context?.scale(scale, scale);
+
+    this.canvasManager.updateTransform({ k: scale, x: -offsetX, y: -offsetY });
   }
 
   public drawRect(rectProperty: RectProperty): void {
