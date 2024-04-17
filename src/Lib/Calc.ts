@@ -1,9 +1,10 @@
+// @ts-ignore
 import { IDrawingDataModel } from './CanvasManager';
 
 export default class Calc {
   private static instance: Calc;
 
-  constructor() {}
+  constructor() { }
 
   public getBoundary(
     drawingDataModel: IDrawingDataModel,
