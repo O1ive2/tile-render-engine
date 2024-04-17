@@ -20,6 +20,9 @@ paint.loadImage(spriteInfo).then(() => {
     // zoom
     paint.zoom(id, scale);
 
+    // resize
+    paint.resize(id);
+
     // use flush to complete
     paint.flush().then(() => {
       // do sth

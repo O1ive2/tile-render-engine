@@ -33,6 +33,19 @@ export default class Paint {
     this.canvasManager.updateTransform({ k: scale, x: -offsetX, y: -offsetY });
   }
 
+  public resize(id: string): void {
+    // 获取当前画布
+    const canvas = document.getElementById(id) as HTMLCanvasElement;
+    const context = canvas.getContext('2d');
+
+    if (context) {
+      const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+      context.setTransform(1, 0, 0, 1, 0, 0);
+      context.clearRect(0, 0, canvas.width, canvas.height);
+      context.putImageData(imageData, 0, 0);
+    }
+  }
+
   public drawRect(rectProperty: RectProperty): void {
     this.geometryManager.collectRect(rectProperty);
   }
