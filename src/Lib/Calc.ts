@@ -1,4 +1,4 @@
-import { IDrawingDataModel } from './CanvasManager';
+import { IDrawingDataModel } from './Canvas';
 
 export default class Calc {
   private static instance: Calc;

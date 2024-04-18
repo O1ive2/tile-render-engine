@@ -1,4 +1,4 @@
-import CanvasManager from './Lib/CanvasManager';
+import CanvasManager from './Lib/Canvas';
 import Gaia from './Lib/Gaia';
 import Paint from './Lib/Paint';
 import {

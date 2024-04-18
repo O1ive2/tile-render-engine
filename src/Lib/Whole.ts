@@ -1,8 +1,7 @@
 import { ImageProperty, PathProperty, RectProperty, TextProperty } from '../Type/Geometry.type';
+import Paint from './Paint';
 
 export class Whole {
-  static instance: Whole;
-
   public OriginalBoundary = {
     minX: 0,
     minY: 0,
@@ -12,7 +11,7 @@ export class Whole {
     height: 0,
   };
 
-  constructor() {}
+  constructor(paint: Paint) {}
 
   public getOriginalBoundary() {
     return this.OriginalBoundary;
@@ -93,7 +92,14 @@ export class Whole {
     return this.OriginalBoundary;
   }
 
-  static from(): Whole {
-    return new Whole();
+  public reset() {
+    this.OriginalBoundary = {
+      minX: 0,
+      minY: 0,
+      maxX: 0,
+      maxY: 0,
+      width: 0,
+      height: 0,
+    };
   }
 }

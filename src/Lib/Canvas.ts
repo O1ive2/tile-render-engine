@@ -1,24 +1,16 @@
 import throttle from 'lodash/throttle';
 import { ImageProperty, RectProperty } from '../Type/Geometry.type';
-import GeometryManager from './GeometryManager';
 import Paint from './Paint';
-import { RenderingBlock, RenderingRegion, RenderingState } from './Region';
-import SubCanvas from './SubCanvas';
-import SubCanvasManager from './SubCanvasManager';
+import { RenderingBlock, RenderingState } from './Region';
 import Util from './Util';
-import { Whole } from './Whole';
 
-export default class CanvasManager {
+export default class Canvas {
   private id: string;
   private level: number = 1;
   private mainCanvas: HTMLCanvasElement;
   private mainCtx: CanvasRenderingContext2D;
-  private subCanvasList: Array<SubCanvas>;
-  private canvasCache: Array<Array<any>> = [];
-  private renderList: Array<{ x: number; y: number; bitmap: any }> = [];
 
-  private whole: Whole;
-  private region: RenderingRegion;
+  private paint: Paint;
 
   // Initial Rendering W H Scale
   private initialRenderingWidth = 0;
@@ -47,35 +39,24 @@ export default class CanvasManager {
     return 2 << (this.level * 2);
   }
 
-  private geometryManager: GeometryManager;
-
   private hoverList: Map<string, { id: number; type: number }> = new Map();
 
-  constructor(
-    id: string,
-    canvas: HTMLCanvasElement,
-    geometryManager: GeometryManager,
-    region: RenderingRegion,
-    whole: Whole,
-  ) {
+  constructor(paint: Paint, id: string) {
     this.id = id;
-    this.mainCanvas = canvas;
-    this.mainCtx = <CanvasRenderingContext2D>canvas.getContext('2d', {
+
+    this.paint = paint;
+
+    this.mainCanvas = document.querySelector(id) ?? document.createElement('canvas');
+    this.mainCtx = <CanvasRenderingContext2D>this.mainCanvas.getContext('2d', {
       willReadFrequently: true,
     });
-    this.whole = whole;
-    this.region = region;
-    this.geometryManager = geometryManager;
-
-    this.subCanvasList = SubCanvasManager.from(region).getSubCanvasList();
-  }
-
-  public getSubCanvasList(): Array<SubCanvas> {
-    return this.subCanvasList;
   }
 
   public updateCanvasByGeometryId(geometryType: number, id: number): void {
-    const blockList = this.region.getRenderingBlockByFilter({ type: geometryType, id });
+    const blockList = this.paint.getProperty().region.getRenderingBlockByFilter({
+      type: geometryType,
+      id,
+    });
 
     for (let i = 0; i < blockList.length; i++) {
       const blockInfo = blockList[i];
@@ -92,7 +73,7 @@ export default class CanvasManager {
       minY: boundaryMinY,
       width,
       height,
-    } = this.whole.getOriginalBoundary();
+    } = this.paint.getProperty().whole.getOriginalBoundary();
 
     const totalOffsetX =
       this.renderingOffsetX +
@@ -114,23 +95,23 @@ export default class CanvasManager {
 
     const index = xIndex + yIndex * sideNumber;
 
-    const blockInfo = this.region.getRenderingBlock(level, index);
+    const blockInfo = this.paint.getProperty().region.getRenderingBlock(level, index);
 
     const {
       rect: sharedRect,
       text: sharedText,
       image: sharedImage,
       path: sharedPath,
-    } = this.geometryManager.getSerializedData();
+    } = this.paint.getProperty().geometryManager.getSerializedData();
 
     // origin
-    const originalRectData = this.geometryManager.getOriginalRectList();
-    const originalTextData = this.geometryManager.getOriginalTextList();
-    const originalImageData = this.geometryManager.getOriginalImageList();
-    const originalPathData = this.geometryManager.getOriginalPathList();
+    const originalRectData = this.paint.getProperty().geometryManager.getOriginalRectList();
+    const originalTextData = this.paint.getProperty().geometryManager.getOriginalTextList();
+    const originalImageData = this.paint.getProperty().geometryManager.getOriginalImageList();
+    const originalPathData = this.paint.getProperty().geometryManager.getOriginalPathList();
 
     // image map
-    const imageMap = this.geometryManager.getImageMap();
+    const imageMap = this.paint.getProperty().gaia.getProperty().spriteIdImageMap;
 
     // remove hover state
     for (let [key, { type, id }] of this.hoverList) {
@@ -146,7 +127,10 @@ export default class CanvasManager {
         maxY = minY + (rect.height + (rect.lineWidth ?? 0)) * scale;
       } else if (type === 2) {
         const image = <ImageProperty>originalImageData.get(id);
-        const { width, height } = imageMap.get(sharedImage.imageIndex[id]);
+        const { width, height } = imageMap.get(sharedImage.imageIndex[id]) ?? {
+          width: 0,
+          height: 0,
+        };
 
         minX = (image.x - boundaryMinX) * scale + totalOffsetX;
         minY = (image.y - boundaryMinY) * scale + totalOffsetY;
@@ -164,7 +148,10 @@ export default class CanvasManager {
       }
 
       if (!(pointerX >= minX && pointerX <= maxX && pointerY >= minY && pointerY <= maxY)) {
-        const currentGeometry = this.geometryManager.getOriginalDataByType(type).get(id);
+        const currentGeometry = this.paint
+          .getProperty()
+          .geometryManager.getOriginalDataByType(type)
+          .get(id);
         this.hoverList.delete(key);
         currentGeometry.hoverOut?.();
       }
@@ -207,8 +194,8 @@ export default class CanvasManager {
       } else if (type === 2) {
         const imageInfo = imageMap.get(sharedImage.imageIndex[id]);
         sharedItem = sharedImage;
-        sharedItemWidth = imageInfo.width;
-        sharedItemHeight = imageInfo.height;
+        sharedItemWidth = imageInfo?.width ?? 0;
+        sharedItemHeight = imageInfo?.height ?? 0;
         x = sharedItem.x[id];
         y = sharedItem.y[id];
         originalData = originalImageData;
@@ -258,7 +245,7 @@ export default class CanvasManager {
       minY: boundaryMinY,
       width,
       height,
-    } = this.whole.getOriginalBoundary();
+    } = this.paint.getProperty().whole.getOriginalBoundary();
 
     const totalOffsetX =
       this.renderingOffsetX +
@@ -280,23 +267,23 @@ export default class CanvasManager {
 
     const index = xIndex + yIndex * sideNumber;
 
-    const blockInfo = this.region.getRenderingBlock(level, index);
+    const blockInfo = this.paint.getProperty().region.getRenderingBlock(level, index);
 
     const {
       rect: sharedRect,
       text: sharedText,
       image: sharedImage,
       path: sharedPath,
-    } = this.geometryManager.getSerializedData();
+    } = this.paint.getProperty().geometryManager.getSerializedData();
 
     // origin
-    const originalRectData = this.geometryManager.getOriginalRectList();
-    const originalTextData = this.geometryManager.getOriginalTextList();
-    const originalImageData = this.geometryManager.getOriginalImageList();
-    const originalPathData = this.geometryManager.getOriginalPathList();
+    const originalRectData = this.paint.getProperty().geometryManager.getOriginalRectList();
+    const originalTextData = this.paint.getProperty().geometryManager.getOriginalTextList();
+    const originalImageData = this.paint.getProperty().geometryManager.getOriginalImageList();
+    const originalPathData = this.paint.getProperty().geometryManager.getOriginalPathList();
 
     // image map
-    const imageMap = this.geometryManager.getImageMap();
+    const imageMap = this.paint.getProperty().gaia.getProperty().spriteIdImageMap;
 
     if (xIndex < 0 || xIndex >= sideNumber || yIndex < 0 || yIndex >= sideNumber) {
       return;
@@ -335,8 +322,8 @@ export default class CanvasManager {
       } else if (type === 2) {
         const imageInfo = imageMap.get(sharedImage.imageIndex[id]);
         sharedItem = sharedImage;
-        sharedItemWidth = imageInfo.width;
-        sharedItemHeight = imageInfo.height;
+        sharedItemWidth = imageInfo?.width ?? 0;
+        sharedItemHeight = imageInfo?.height ?? 0;
         x = sharedItem.x[id];
         y = sharedItem.y[id];
         originalData = originalImageData;
@@ -372,7 +359,13 @@ export default class CanvasManager {
     }
   }
 
-  public updateTransform(transform: any): void {
+  public updateTransform(
+    transform: any = {
+      x: this.renderingOffsetX,
+      y: this.renderingOffsetY,
+      k: this.renderingScale,
+    },
+  ): void {
     this.renderingOffsetX = transform.x;
     this.renderingOffsetY = transform.y;
     this.renderingScale = transform.k;
@@ -380,14 +373,18 @@ export default class CanvasManager {
     const areaList = this.getPiecesIndex(transform);
 
     for (let pieceIndex of areaList) {
-      const state = (<RenderingBlock>this.region.getRenderingBlock(level, pieceIndex)).state;
+      const state = (<RenderingBlock>(
+        this.paint.getProperty().region.getRenderingBlock(level, pieceIndex)
+      )).state;
       if (state === RenderingState.unrendered) {
-        this.region.updateRenderingBlockAttribute(
-          level,
-          pieceIndex,
-          'state',
-          RenderingState.rendering,
-        );
+        this.paint
+          .getProperty()
+          .region.updateRenderingBlockAttribute(
+            level,
+            pieceIndex,
+            'state',
+            RenderingState.rendering,
+          );
         this.paintPartCanvas(level, pieceIndex);
       }
     }
@@ -512,7 +509,7 @@ export default class CanvasManager {
   }
 
   public flush() {
-    const { width, height } = this.whole.getOriginalBoundary();
+    const { width, height } = this.paint.getProperty().whole.getOriginalBoundary();
     const canvasWidth = this.getWidth();
     const canvasHeight = this.getHeight();
     this.realWidth = width;
@@ -733,14 +730,15 @@ export default class CanvasManager {
     const paintWidth = widthPerPiece * realPieceToRenderingScale;
     const paintHeight = heightPerPiece * realPieceToRenderingScale;
 
-    const subCanvas = this.subCanvasList.find(
-      (item) => item.getIsInitialized() && !item.getIsBusy(),
-    );
+    const renderWorker = this.paint
+      .getProperty()
+      .gaia.getProperty()
+      .renderWorkerList.find((item: any) => item.getIsInitialized() && !item.getIsBusy());
 
-    if (subCanvas) {
-      const { minX, minY } = this.whole.getOriginalBoundary();
+    if (renderWorker) {
+      const { minX, minY } = this.paint.getProperty().whole.getOriginalBoundary();
       if (renderType === 'render') {
-        subCanvas.render(
+        renderWorker.render(
           this.id,
           paintWidth,
           paintHeight,
@@ -749,9 +747,10 @@ export default class CanvasManager {
           level,
           pieceIndex,
           realPieceToRenderingScale,
+          this.paint,
         );
       } else if (renderType === 'rerender') {
-        subCanvas.reRender(
+        renderWorker.reRender(
           this.id,
           paintWidth,
           paintHeight,
@@ -760,6 +759,7 @@ export default class CanvasManager {
           level,
           pieceIndex,
           realPieceToRenderingScale,
+          this.paint,
         );
       }
     } else {
@@ -768,12 +768,14 @@ export default class CanvasManager {
         if (this.level === level) {
           this.paintPartCanvas(level, pieceIndex, renderType);
         } else {
-          this.region.updateRenderingBlockAttribute(
-            level,
-            pieceIndex,
-            'state',
-            RenderingState.unrendered,
-          );
+          this.paint
+            .getProperty()
+            .region.updateRenderingBlockAttribute(
+              level,
+              pieceIndex,
+              'state',
+              RenderingState.unrendered,
+            );
         }
       }, 0);
     }
@@ -799,7 +801,7 @@ export default class CanvasManager {
     ctx.clearRect(0, 0, this.mainCanvas.width, this.mainCanvas.height);
 
     for (let pieceIndex of areaList) {
-      const blockInfo = this.region.getRenderingBlock(level, pieceIndex);
+      const blockInfo = this.paint.getProperty().region.getRenderingBlock(level, pieceIndex);
       const image = blockInfo?.image;
       const state = blockInfo?.state;
       const xIndex = pieceIndex % sideNumber;
@@ -823,12 +825,14 @@ export default class CanvasManager {
           (this.initialRenderingHeight / sideNumber) * renderingScale,
         );
         if (state === RenderingState.rerendering) {
-          this.region.updateRenderingBlockAttribute(
-            level,
-            pieceIndex,
-            'state',
-            RenderingState.rendered,
-          );
+          this.paint
+            .getProperty()
+            .region.updateRenderingBlockAttribute(
+              level,
+              pieceIndex,
+              'state',
+              RenderingState.rendered,
+            );
           setTimeout(() => {
             this.paintPartCanvas(level, pieceIndex, 'rerender');
           }, 0);
@@ -841,15 +845,5 @@ export default class CanvasManager {
     if (!once) {
       requestAnimationFrame(() => this.render());
     }
-  }
-
-  public static from(id: string, canvasDom: HTMLCanvasElement): Paint {
-    const whole = Whole.from();
-    const region = RenderingRegion.from(whole);
-    const geometryManager = GeometryManager.from(id, region, whole);
-    return Paint.from(
-      new CanvasManager(id, canvasDom, geometryManager, region, whole),
-      geometryManager,
-    );
   }
 }
