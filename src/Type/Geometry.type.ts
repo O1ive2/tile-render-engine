@@ -111,3 +111,24 @@ export type IDrawingDataModel = {
   image: Map<number, ImageProperty>;
   text: Map<number, TextProperty>;
 };
+
+export type ISpriteProperty = {
+  [key: string]: {
+    width: number;
+    height: number;
+    normalImgBase64: string;
+    hoverImgBase64: string;
+    checkedImgBase64: string;
+  };
+};
+
+export type ISpriteImageProperty = {
+  img: HTMLImageElement;
+  hoverImg: HTMLImageElement;
+  checkImg: HTMLImageElement;
+  width: number;
+  height: number;
+  normalImgBase64: string;
+  hoverImgBase64: string;
+  checkedImgBase64: string;
+};

@@ -1,20 +1,47 @@
 import { ImageProperty, PathProperty, RectProperty, TextProperty } from '../Type/Geometry.type';
-import CanvasManager from './CanvasManager';
+import Canvas from './Canvas';
+import Gaia from './Gaia';
 import GeometryManager from './GeometryManager';
 import { Highlight } from './Highlight';
+import { RenderingRegion } from './Region';
+import { Whole } from './Whole';
 
 export default class Paint {
-  private canvasManager: CanvasManager;
+  private gaia: Gaia;
+
+  private id: string;
+  private whole: Whole;
+  private region: RenderingRegion;
+  private highlightList: Highlight;
+
+  private canvas: Canvas;
   private geometryManager: GeometryManager;
 
-  constructor(canvasManager: CanvasManager, geometryManager: GeometryManager) {
-    this.canvasManager = canvasManager;
-    this.geometryManager = geometryManager;
+  constructor(gaia: Gaia, id: string) {
+    this.gaia = gaia;
+
+    this.id = id;
+    this.whole = new Whole(this);
+    this.region = new RenderingRegion(this);
+    this.highlightList = new Highlight();
+
+    this.canvas = new Canvas(this, id);
+    this.geometryManager = new GeometryManager(this, id);
   }
 
-  public zoom(): void {
-    
+  public getProperty() {
+    return {
+      id: this.id,
+      whole: this.whole,
+      region: this.region,
+      highlightList: this.highlightList,
+      canvas: this.canvas,
+      geometryManager: this.geometryManager,
+      gaia: this.gaia,
+    };
   }
+
+  public zoom(): void {}
 
   public drawRect(rectProperty: RectProperty): void {
     this.geometryManager.collectRect(rectProperty);
@@ -32,8 +59,8 @@ export default class Paint {
     this.geometryManager.collectPath(pathProperty);
   }
 
-  public highlight(idList: Array<number | string>, property: any): void {
-    const highlightList = Highlight.from();
+  public setProperty(idList: Array<number | string>, property: any): void {
+    const highlightList = this.highlightList;
 
     for (let businessId of idList) {
       const autoIdMap = this.geometryManager.getAutoIdMap();
@@ -46,35 +73,28 @@ export default class Paint {
           highlightList.get(type)?.delete(id);
         }
 
-        this.canvasManager.updateCanvasByGeometryId(type, id);
+        this.canvas.updateCanvasByGeometryId(type, id);
       }
     }
   }
 
-  public loadImage(spriteInfo: {
-    [key: string]: {
-      width: number;
-      height: number;
-      normalImgBase64: string;
-      hoverImgBase64: string;
-      checkedImgBase64: string;
-    };
-  }): Promise<void> {
-    return new Promise((resolve, reject) => {
-      this.geometryManager.loadImage(spriteInfo).then(resolve);
-    });
+  public clear() {
+    this.region.clear();
+    this.whole.reset();
+    this.highlightList.reset();
+    this.geometryManager.clear();
   }
 
-  public flush(): Promise<void> {
+  public flush(canvasFlush: boolean = true): Promise<void> {
     return new Promise((resolve) => {
-      this.geometryManager.flush(this.canvasManager).then(() => {
-        this.canvasManager.flush();
+      this.geometryManager.flush().then(() => {
+        if (canvasFlush) {
+          this.canvas.flush();
+        } else {
+          this.canvas.updateTransform();
+        }
         resolve();
       });
     });
-  }
-
-  public static from(canvasManager: CanvasManager, geometryManager: GeometryManager): Paint {
-    return new Paint(canvasManager, geometryManager);
   }
 }
