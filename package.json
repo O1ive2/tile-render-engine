@@ -15,7 +15,6 @@
     "dev": "raina dev",
     "test": "echo 'no test'",
     "deploy": "raina deploy"
-
   },
   "dependencies": {
     "@msgpack/msgpack": "^3.0.0-beta2",
