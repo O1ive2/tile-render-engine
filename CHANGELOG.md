@@ -13,7 +13,7 @@
 
 ### Break Changes
 
-* **Gaia和Paint作用域：** 旧版的Gaia和Paint作用域一致，新版Gaia被设计为渲染业务的入口，不同的Gaia实例对应不同的业务，如Schematic和LayoutView两个业务就需要两个Gaia实例，新版Paint依附于某个Gaia实例，由```gaia.createPaint```生成，一个Gaia实例可生成多个Paint实例，一个Paint对应一个canvas，具体用法参考Readme
+* **Gaia和Paint作用域：** 旧版的Gaia和Paint作用域一致。新版Gaia被设计为渲染业务的入口，不同的Gaia实例对应不同的业务，如Schematic和LayoutView两个业务就需要两个Gaia实例，一个Gaia实例包含一组Webworker。新版Paint依附于某个Gaia实例，由```gaia.createPaint```生成，一个Gaia实例可生成多个Paint实例，一个Paint对应一个canvas，具体用法参考Readme
 
 ## 0.1.3
 
