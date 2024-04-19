@@ -1,6 +1,6 @@
 {
   "name": "@raina/gaia",
-  "version": "0.1.3",
+  "version": "0.2.0",
   "description": "",
   "license": "ISC",
   "author": "Zhang Yangjun",
@@ -15,7 +15,6 @@
     "dev": "raina dev",
     "test": "echo 'no test'",
     "deploy": "raina deploy"
-
   },
   "dependencies": {
     "@msgpack/msgpack": "^3.0.0-beta2",

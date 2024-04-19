@@ -6,8 +6,8 @@ import {
   RectProperty,
   TextProperty,
 } from '../Type/Geometry.type';
+import Paint from './Paint';
 import Util from './Util';
-import { Whole } from './Whole';
 
 export enum RenderingState {
   unrendered,
@@ -39,7 +39,7 @@ export class RenderingBlock {
   public reRenderList: Map<string, { type: number; id: number; used: boolean }> = new Map([]);
   public parent: RenderingBlock | null = null;
 
-  constructor(level: number, index: number, renderingRegion: RenderingRegion) {
+  constructor(paint: Paint, level: number, index: number, renderingRegion: RenderingRegion) {
     this.renderingRegion = renderingRegion;
 
     const sideNumber = Util.getSideNumberOnLevel(level);
@@ -54,7 +54,7 @@ export class RenderingBlock {
       minY: originalMinY,
       width: originalWidth,
       height: originalHeight,
-    } = renderingRegion.whole.getOriginalBoundary();
+    } = paint.getProperty().whole.getOriginalBoundary();
 
     const originalWidthPerPiece = originalWidth / sideNumber;
     const originalHeightPerPiece = originalHeight / sideNumber;
@@ -164,15 +164,26 @@ export class RenderingBlock {
     // todo
     this[key] = value;
   }
+
+  public reset() {
+    this.lock = false;
+    this.state = RenderingState.unrendered;
+    this.image = null;
+    this.idList = new Uint32Array();
+    this.typeList = new Uint8Array();
+    this.reRenderList = new Map([]);
+    this.parent = null;
+  }
 }
 
 export class RenderingRegion {
-  public whole: Whole;
+  private paint: Paint;
+
   public originalGeometryData: IDrawingDataModel | null = null;
   public data: Map<number, Map<number, RenderingBlock>> = new Map();
 
-  constructor(whole: Whole) {
-    this.whole = whole;
+  constructor(paint: Paint) {
+    this.paint = paint;
   }
 
   public init(originalGeometryData: IDrawingDataModel) {
@@ -196,7 +207,7 @@ export class RenderingRegion {
     }
     const renderingBlock = this.data.get(level)?.get(index);
     if (!renderingBlock) {
-      this.setRenderingBlock(level, index, new RenderingBlock(level, index, this));
+      this.setRenderingBlock(level, index, new RenderingBlock(this.paint, level, index, this));
       return this.data.get(level)?.get(index) ?? null;
     } else {
       return renderingBlock ?? null;
@@ -216,7 +227,7 @@ export class RenderingRegion {
   public setRenderingBlockByLevel(level: number) {
     const pieceNumber = Util.getSideNumberOnLevel(level) ** 2;
     for (let i = 0; i < pieceNumber; i++) {
-      this.setRenderingBlock(level, i, new RenderingBlock(level, i, this));
+      this.setRenderingBlock(level, i, new RenderingBlock(this.paint, level, i, this));
     }
   }
 
@@ -249,7 +260,11 @@ export class RenderingRegion {
     return filteredList;
   }
 
-  static from(whole: Whole): RenderingRegion {
-    return new RenderingRegion(whole);
+  public clear() {
+    for (let [key, renderingBlockMap] of this.data) {
+      for (let [index, renderingBlock] of renderingBlockMap) {
+        renderingBlock.reset();
+      }
+    }
   }
 }

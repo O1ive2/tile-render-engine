@@ -11,53 +11,55 @@ const paint: Paint = Gaia.init('#main-canvas') as Paint;
 // load sprite data
 paint.loadImage(spriteInfo).then(() => {
 
-    // draw geometry
-    paint.drawRect(property:RectProperty);
-    paint.drawText(property:TextProperty);
-    paint.drawImage(property:ImageProperty);
-    paint.drawPath(property:PathProperty);
-
-    // zoom
-    paint.zoom(id, scale);
-
-    // resize
-    paint.resize(id);
-
-    // use flush to complete
-    paint.flush().then(() => {
-      // do sth
-    });
+    Gaia.init({
+      workers: 8,
+      sprite: spriteInfo
+    }).then((gaia: Gaia) => {
+      const paint = gaia.createPaint("#main-canvas");
 
 
-    // highlight geometry
+      // draw geometry
+      paint.drawRect(property:RectProperty);
+      paint.drawText(property:TextProperty);
+      paint.drawImage(property:ImageProperty);
+      paint.drawPath(property:PathProperty);
+
+      // zoom
+      paint.zoom(id, scale);
+
+      // resize
+      paint.resize(id);
+
+      // use flush to complete
+      paint.flush().then(() => {
+        // do sth
+      });
 
 
-    // example
-
-    // path
-    paint.highlight([`${fromX}-${fromY}-${toX}-${toY}`], {
-        strokeStyle: "#5cdbd3",
-        lineDash: [4, 4],
-    })
-
-    // image
-    paint.highlight([handle_name], {
-        state: "hover"
-    })
+      // highlight geometry
 
 
-    // to recover highlight just set null
-    paint.highlight([handle_name], null)
+      // example
+
+      // path
+      paint.highlight([`${fromX}-${fromY}-${toX}-${toY}`], {
+          strokeStyle: "#5cdbd3",
+          lineDash: [4, 4],
+      })
+
+      // image
+      paint.highlight([handle_name], {
+          state: "hover"
+      })
+
+
+      // to recover highlight just set null
+      paint.highlight([handle_name], null)
 
 
 
 
-
-
-
-    // full example
-
-    paint.loadImage(spriteInfo).then(() => {
+      // full example
       const checkList: string[] = [];
 
       for (const { x, y, name, width, height, type, handle_name } of schematicInfo.instanceList) {
@@ -138,23 +140,29 @@ paint.loadImage(spriteInfo).then(() => {
       }
 
       paint.flush();
-    })
 
 
-})
+
+      setTimeout(()=>{
+        paint.clear();
+
+        // 绘制你的新图形
+        ...
+
+        paint.flush(false); // 设置为false保留画布缩放位移信息
+      },2000)
+
+
+
+
+    });
 
 
 ```
 
-## bugs
+## bugs left
 
-1. single instance -> multi instance (OK)
-2. resize fit (OK)
-3. tool bar function extensions
-4. line highlight bold not right lineDash
-5. highlight shadow left
-6. highlight support lineWidth property (OK)
-7. flush promise (OK)
-8. click sometime not work (OK)
-9. destroy callback
-10. rect boundary cut by block
+1. tool bar function extensions
+2. line highlight bold not right lineDash
+3. highlight shadow left
+4. destroy callback
