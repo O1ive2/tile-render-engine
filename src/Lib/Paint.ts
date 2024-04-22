@@ -46,8 +46,6 @@ export default class Paint {
     context?.clearRect(0, 0, originWidth, originHeight);
     context?.translate(-offsetX, -offsetY);
     context?.scale(scale, scale);
-
-    this.canvas.updateTransform({ k: scale, x: -offsetX, y: -offsetY });
   }
 
   public resize(id: string): void {
