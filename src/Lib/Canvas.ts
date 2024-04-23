@@ -402,6 +402,10 @@ export default class Canvas {
     return this.mainCanvas;
   }
 
+  public getCurrentScale(): number {
+    return this.renderingScale;
+  }
+
   public on(event: string, callback: any, callbackEnd?: any): void {
     const canvas = this.mainCanvas;
     if (event === 'zoom') {

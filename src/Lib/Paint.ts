@@ -29,36 +29,24 @@ export default class Paint {
     this.geometryManager = new GeometryManager(this, id);
   }
 
-  public zoom(id: string, scale: number): void {
-    // 获取当前画布
-    const canvas = document.getElementById(id) as HTMLCanvasElement;
+  public zoom(scale: number): void {
+    const newScale = scale * this.canvas.getCurrentScale();
     // 当前画布宽高
-    const originWidth = canvas.width;
-    const originHeight = canvas.height;
+    const originWidth = this.canvas.getWidth();
+    const originHeight = this.canvas.getHeight();
     // 缩放后画布宽高
-    const newWidth = originWidth * scale;
-    const newHeight = originHeight * scale;
+    const newWidth = originWidth * newScale;
+    const newHeight = originHeight * newScale;
     // 缩放后画布偏移量
     const offsetX = (newWidth - originWidth) / 2;
     const offsetY = (newHeight - originHeight) / 2;
 
-    const context = canvas.getContext('2d');
-    context?.clearRect(0, 0, originWidth, originHeight);
-    context?.translate(-offsetX, -offsetY);
-    context?.scale(scale, scale);
+    // 更新缩放后的画布
+    this.canvas.updateTransform({ k: newScale, x: -offsetX, y: -offsetY });
   }
 
-  public resize(id: string): void {
-    // 获取当前画布
-    const canvas = document.getElementById(id) as HTMLCanvasElement;
-    const context = canvas.getContext('2d');
-
-    if (context) {
-      const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-      context.setTransform(1, 0, 0, 1, 0, 0);
-      context.clearRect(0, 0, canvas.width, canvas.height);
-      context.putImageData(imageData, 0, 0);
-    }
+  public resize(): void {
+    this.canvas.updateTransform({ k: 1, x: 0, y: 0 });
   }
 
   public getProperty() {
