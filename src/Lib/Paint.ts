@@ -32,21 +32,31 @@ export default class Paint {
   public zoom(scale: number): void {
     const newScale = scale * this.canvas.getCurrentScale();
     // 当前画布宽高
-    const originWidth = this.canvas.getWidth();
-    const originHeight = this.canvas.getHeight();
+    const currentWidth = this.canvas.getWidth();
+    const currentHeight = this.canvas.getHeight();
     // 缩放后画布宽高
-    const newWidth = originWidth * newScale;
-    const newHeight = originHeight * newScale;
+    const newWidth = currentWidth * newScale;
+    const newHeight = currentHeight * newScale;
     // 缩放后画布偏移量
-    const offsetX = (newWidth - originWidth) / 2;
-    const offsetY = (newHeight - originHeight) / 2;
+    const offsetX = (newWidth - currentWidth) / 2;
+    const offsetY = (newHeight - currentHeight) / 2;
 
     // 更新缩放后的画布
     this.canvas.updateTransform({ k: newScale, x: -offsetX, y: -offsetY });
   }
 
   public resize(): void {
-    this.canvas.updateTransform({ k: 1, x: 0, y: 0 });
+    // 画布初始宽高
+    const originalWidth = 310;
+    const originalHeight = 242;
+    const canvasWidth = this.canvas.getWidth();
+    const canvasHeight = this.canvas.getHeight();
+    const scaleX = canvasWidth / originalWidth;
+    const scaleY = canvasHeight / originalHeight;
+    const scale = Math.min(scaleX, scaleY);
+    const offsetX = (canvasWidth * scale) / 2 - canvasWidth / 2;
+    const offsetY = (canvasHeight * scale) / 2 - canvasHeight / 2;
+    this.canvas.updateTransform({ k: scale, x: -offsetX, y: -offsetY });
   }
 
   public getProperty() {
