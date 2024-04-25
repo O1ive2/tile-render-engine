@@ -505,6 +505,15 @@ export default class Canvas {
         },
         false,
       );
+    } else if (event === 'resize') {
+      // canvas.addEventListener(
+      //   'resize',
+      //   (event: UIEvent) => {
+      //     alert(123123123);
+      //     callback();
+      //   },
+      //   false,
+      // );
     }
   }
 
@@ -589,6 +598,10 @@ export default class Canvas {
       // if (!this.opLock.click) {
       this.updateCheck(x, y, 'dbclick');
       // }
+    });
+
+    this.on('resize', () => {
+      console.log('resize');
     });
 
     this.render();
@@ -838,12 +851,14 @@ export default class Canvas {
           }, 0);
         }
       }
+
     }
 
     ctx.restore();
 
     if (!once) {
-      requestAnimationFrame(() => this.render());
+      console.log(123123);
+      // requestAnimationFrame(() => this.render());
     }
   }
 }

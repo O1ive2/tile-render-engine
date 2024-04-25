@@ -9,11 +9,13 @@
 ### Features
 
 * **paint.clear：** 新增```paint.clear```方法，用于清空画布
-* **paint.flush：** ```paint.flush```新增boolean型入参，默认为true：重置当前画布的transform信息，false：保留当前画布transform信息
+* **paint.flush：** ```paint.flush```新增boolean型入参，默认为true：重置当前画布的transform信息，false：保留当前画布transform信息，但不会触发render绘制
 
 ### Break Changes
 
 * **Gaia和Paint作用域：** 旧版的Gaia和Paint作用域一致。新版Gaia被设计为渲染业务的入口，不同的Gaia实例对应不同的业务，如Schematic和LayoutView两个业务就需要两个Gaia实例，一个Gaia实例包含一组Webworker。新版Paint依附于某个Gaia实例，由```gaia.createPaint```生成，一个Gaia实例可生成多个Paint实例，一个Paint对应一个canvas，具体用法参考Readme
+
+* **Paint.setProperty：** ```Paint.setProperty``` 取代 ```Paint.highlight```，以更符合API语义
 
 ## 0.1.3
 
