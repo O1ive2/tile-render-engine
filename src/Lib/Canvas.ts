@@ -19,6 +19,7 @@ export default class Canvas {
   private renderingScale = 1;
   private renderingOffsetX = 0;
   private renderingOffsetY = 0;
+  private renderingAreaList: Array<number> = [];
 
   // real size W H
   private realWidth = 0;
@@ -30,6 +31,10 @@ export default class Canvas {
     hover: false,
     click: false,
   };
+
+  private resizeObserver: ResizeObserver | null = null;
+
+  private detectTimer: NodeJS.Timeout | null = null;
 
   get maxScaleOnLevel() {
     return 2 << (this.level * 2 - 2);
@@ -50,6 +55,8 @@ export default class Canvas {
     this.mainCtx = <CanvasRenderingContext2D>this.mainCanvas.getContext('2d', {
       willReadFrequently: true,
     });
+
+    this.detect();
   }
 
   public updateCanvasByGeometryId(geometryType: number, id: number): void {
@@ -369,25 +376,22 @@ export default class Canvas {
     this.renderingOffsetX = transform.x;
     this.renderingOffsetY = transform.y;
     this.renderingScale = transform.k;
-    const level = (this.level = Util.getLevelByScale(transform.k));
-    const areaList = this.getPiecesIndex(transform);
 
-    for (let pieceIndex of areaList) {
-      const state = (<RenderingBlock>(
-        this.paint.getProperty().region.getRenderingBlock(level, pieceIndex)
-      )).state;
+    const level = (this.level = Util.getLevelByScale(transform.k));
+
+    this.renderingAreaList = this.getPiecesIndex(transform);
+
+    const region = this.paint.getProperty().region;
+
+    for (let pieceIndex of this.renderingAreaList) {
+      const state = (<RenderingBlock>region.getRenderingBlock(level, pieceIndex)).state;
       if (state === RenderingState.unrendered) {
-        this.paint
-          .getProperty()
-          .region.updateRenderingBlockAttribute(
-            level,
-            pieceIndex,
-            'state',
-            RenderingState.rendering,
-          );
+        region.updateRenderingBlockAttribute(level, pieceIndex, 'state', RenderingState.rendering);
         this.paintPartCanvas(level, pieceIndex);
       }
     }
+
+    this.render();
   }
 
   public getWidth(): number {
@@ -424,6 +428,9 @@ export default class Canvas {
         'pointermove',
         (event: PointerEvent) => {
           if (draggable) {
+            k = this.renderingScale;
+            x = this.renderingOffsetX;
+            y = this.renderingOffsetY;
             x += event.offsetX - startX;
             y += event.offsetY - startY;
             startX = event.offsetX;
@@ -452,6 +459,9 @@ export default class Canvas {
       canvas.addEventListener(
         'wheel',
         (event: WheelEvent) => {
+          k = this.renderingScale;
+          x = this.renderingOffsetX;
+          y = this.renderingOffsetY;
           if (!draggable) {
             const perScale = 1.2;
             if (event.deltaY < 0) {
@@ -506,6 +516,12 @@ export default class Canvas {
         false,
       );
     } else if (event === 'resize') {
+      if (!this.resizeObserver) {
+        this.resizeObserver = new ResizeObserver((entries) => {
+          callback(entries[0]);
+        });
+        this.resizeObserver.observe(canvas);
+      }
       // canvas.addEventListener(
       //   'resize',
       //   (event: UIEvent) => {
@@ -517,7 +533,7 @@ export default class Canvas {
     }
   }
 
-  public flush() {
+  public flush(canvasFlush: boolean = true) {
     const { width, height } = this.paint.getProperty().whole.getOriginalBoundary();
     const canvasWidth = this.getWidth();
     const canvasHeight = this.getHeight();
@@ -540,71 +556,82 @@ export default class Canvas {
       y: 0,
     });
 
-    let lockTimer: NodeJS.Timeout | null = null;
+    if (canvasFlush) {
+      let lockTimer: NodeJS.Timeout | null = null;
 
-    this.on(
-      'zoom',
-      throttle(
-        (transform: any) => {
-          lockTimer && clearTimeout(lockTimer);
-          this.opLock.hover = true;
-          // this.opLock.click = true;
-          this.updateTransform(transform);
-          this.render(true);
+      this.on(
+        'zoom',
+        throttle(
+          (transform: any) => {
+            lockTimer && clearTimeout(lockTimer);
+            this.opLock.hover = true;
+            // this.opLock.click = true;
+            this.updateTransform(transform);
+          },
+          16,
+          {
+            leading: true,
+            trailing: true,
+          },
+        ),
+        () => {
+          lockTimer = setTimeout(() => {
+            this.opLock.hover = false;
+            // this.opLock.click = false;
+          }, 0);
         },
-        0,
-        {
-          leading: true,
-          trailing: false,
-        },
-      ),
-      () => {
-        lockTimer = setTimeout(() => {
-          this.opLock.hover = false;
-          // this.opLock.click = false;
-        }, 0);
-      },
-    );
+      );
 
-    this.on(
-      'hover',
-      throttle(
-        ({ x, y }: { x: number; y: number }) => {
-          if (!this.opLock.hover) {
-            this.updateHover(x, y);
-          }
-        },
-        30,
-        {
-          leading: true,
-          trailing: false,
-        },
-      ),
-    );
+      this.on(
+        'hover',
+        throttle(
+          ({ x, y }: { x: number; y: number }) => {
+            if (!this.opLock.hover) {
+              this.updateHover(x, y);
+            }
+          },
+          30,
+          {
+            leading: true,
+            trailing: false,
+          },
+        ),
+      );
 
-    this.on('click', ({ x, y }: { x: number; y: number }) => {
-      // if (!this.opLock.click) {
-      this.updateCheck(x, y, 'click');
-      // }
-    });
+      this.on('click', ({ x, y }: { x: number; y: number }) => {
+        // if (!this.opLock.click) {
+        this.updateCheck(x, y, 'click');
+        // }
+      });
 
-    this.on('rclick', ({ x, y }: { x: number; y: number }) => {
-      // if (!this.opLock.click) {
-      this.updateCheck(x, y, 'rclick');
-      // }
-    });
+      this.on('rclick', ({ x, y }: { x: number; y: number }) => {
+        // if (!this.opLock.click) {
+        this.updateCheck(x, y, 'rclick');
+        // }
+      });
 
-    this.on('dbclick', ({ x, y }: { x: number; y: number }) => {
-      // if (!this.opLock.click) {
-      this.updateCheck(x, y, 'dbclick');
-      // }
-    });
+      this.on('dbclick', ({ x, y }: { x: number; y: number }) => {
+        // if (!this.opLock.click) {
+        this.updateCheck(x, y, 'dbclick');
+        // }
+      });
 
-    this.on('resize', () => {
-      console.log('resize');
-    });
-
-    this.render();
+      this.on(
+        'resize',
+        throttle(
+          (entry: ResizeObserverEntry) => {
+            const region = this.paint.getProperty().region;
+            region.clearImage();
+            this.flush(false);
+          },
+          1000,
+          {
+            leading: true,
+            trailing: true,
+          },
+        ),
+      );
+    }
   }
 
   private getPiecesIndex(transform: any): Array<number> {
@@ -765,8 +792,6 @@ export default class Canvas {
       } else if (renderType === 'rerender') {
         renderWorker.reRender(
           this.id,
-          paintWidth,
-          paintHeight,
           offsetX + minX,
           offsetY + minY,
           level,
@@ -794,8 +819,10 @@ export default class Canvas {
     }
   }
 
-  private render(once = false): void {
+  public render(): void {
     const ctx = this.mainCtx;
+
+    const region = this.paint.getProperty().region;
 
     const renderingOffsetX = this.renderingOffsetX;
     const renderingOffsetY = this.renderingOffsetY;
@@ -803,18 +830,12 @@ export default class Canvas {
     const level = this.level;
     const sideNumber = Util.getSideNumberOnLevel(level);
 
-    const areaList = this.getPiecesIndex({
-      k: renderingScale,
-      x: renderingOffsetX,
-      y: renderingOffsetY,
-    });
-
     ctx.save();
 
     ctx.clearRect(0, 0, this.mainCanvas.width, this.mainCanvas.height);
 
-    for (let pieceIndex of areaList) {
-      const blockInfo = this.paint.getProperty().region.getRenderingBlock(level, pieceIndex);
+    for (let pieceIndex of this.renderingAreaList) {
+      const blockInfo = region.getRenderingBlock(level, pieceIndex);
       const image = blockInfo?.image;
       const state = blockInfo?.state;
       const xIndex = pieceIndex % sideNumber;
@@ -837,28 +858,29 @@ export default class Canvas {
           (this.initialRenderingWidth / sideNumber) * renderingScale,
           (this.initialRenderingHeight / sideNumber) * renderingScale,
         );
-        if (state === RenderingState.rerendering) {
-          this.paint
-            .getProperty()
-            .region.updateRenderingBlockAttribute(
-              level,
-              pieceIndex,
-              'state',
-              RenderingState.rendered,
-            );
-          setTimeout(() => {
-            this.paintPartCanvas(level, pieceIndex, 'rerender');
-          }, 0);
-        }
       }
-
     }
 
     ctx.restore();
+  }
 
-    if (!once) {
-      console.log(123123);
-      // requestAnimationFrame(() => this.render());
+  private detect(): void {
+    const region = this.paint.getProperty().region;
+    const level = this.level;
+
+    for (let pieceIndex of this.renderingAreaList) {
+      const blockInfo = region.getRenderingBlock(level, pieceIndex);
+      const state = blockInfo?.state;
+
+      if (state === RenderingState.rerendering) {
+        region.updateRenderingBlockAttribute(level, pieceIndex, 'state', RenderingState.rendered);
+        setTimeout(() => {
+          this.paintPartCanvas(level, pieceIndex, 'rerender');
+        }, 0);
+      }
     }
+    this.detectTimer = setTimeout(() => {
+      this.detect();
+    }, 60);
   }
 }

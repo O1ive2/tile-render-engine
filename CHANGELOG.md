@@ -1,5 +1,15 @@
 # ChangeLog
 
+## 0.2.1
+
+### Bug Fixes
+
+* **远程桌面下的卡顿：** 修复了render循环导致的渲染卡顿
+
+### Features
+
+* **缩放自适应：** 现在缩放canvas，内容会跟随视窗自适应渲染了
+
 ## 0.2.0
 
 ### Bug Fixes
