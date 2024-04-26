@@ -1,5 +1,11 @@
 # ChangeLog
 
+## 0.2.2
+
+### Features
+
+* **paint.onBlank：** 新增```onBlank```方法，支持```click```、```rclick```和```dbclick```回调，用于触发非图形区域的回调
+
 ## 0.2.1
 
 ### Bug Fixes

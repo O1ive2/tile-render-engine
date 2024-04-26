@@ -17,6 +17,11 @@ paint.loadImage(spriteInfo).then(() => {
     }).then((gaia: Gaia) => {
       const paint = gaia.createPaint("#main-canvas");
 
+      // blank callback
+      paint.onBlank("click",()=>{});
+      paint.onBlank("rclick",()=>{});
+      paint.onBlank("dbclick",()=>{});
+
 
       // draw geometry
       paint.drawRect(property:RectProperty);

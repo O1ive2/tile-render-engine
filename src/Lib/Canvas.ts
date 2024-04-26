@@ -247,12 +247,14 @@ export default class Canvas {
   }
 
   public updateCheck(pointerX: number, pointerY: number, checkType = 'click') {
+    const paintProperty = this.paint.getProperty();
+
     const {
       minX: boundaryMinX,
       minY: boundaryMinY,
       width,
       height,
-    } = this.paint.getProperty().whole.getOriginalBoundary();
+    } = paintProperty.whole.getOriginalBoundary();
 
     const totalOffsetX =
       this.renderingOffsetX +
@@ -274,27 +276,27 @@ export default class Canvas {
 
     const index = xIndex + yIndex * sideNumber;
 
-    const blockInfo = this.paint.getProperty().region.getRenderingBlock(level, index);
+    const blockInfo = paintProperty.region.getRenderingBlock(level, index);
 
     const {
       rect: sharedRect,
       text: sharedText,
       image: sharedImage,
       path: sharedPath,
-    } = this.paint.getProperty().geometryManager.getSerializedData();
+    } = paintProperty.geometryManager.getSerializedData();
 
     // origin
-    const originalRectData = this.paint.getProperty().geometryManager.getOriginalRectList();
-    const originalTextData = this.paint.getProperty().geometryManager.getOriginalTextList();
-    const originalImageData = this.paint.getProperty().geometryManager.getOriginalImageList();
-    const originalPathData = this.paint.getProperty().geometryManager.getOriginalPathList();
+    const originalRectData = paintProperty.geometryManager.getOriginalRectList();
+    const originalTextData = paintProperty.geometryManager.getOriginalTextList();
+    const originalImageData = paintProperty.geometryManager.getOriginalImageList();
+    const originalPathData = paintProperty.geometryManager.getOriginalPathList();
 
     // image map
-    const imageMap = this.paint.getProperty().gaia.getProperty().spriteIdImageMap;
+    const imageMap = paintProperty.gaia.getProperty().spriteIdImageMap;
 
-    if (xIndex < 0 || xIndex >= sideNumber || yIndex < 0 || yIndex >= sideNumber) {
-      return;
-    }
+    // if (xIndex < 0 || xIndex >= sideNumber || yIndex < 0 || yIndex >= sideNumber) {
+    //   return;
+    // }
 
     const typeList = blockInfo?.typeList.slice().reverse() ?? [];
     const idList = blockInfo?.idList.slice().reverse() ?? [];
@@ -361,7 +363,13 @@ export default class Canvas {
         currentGeometry[checkType]();
         this.updateCanvasByGeometryId(type, id);
 
-        break;
+        return;
+      }
+    }
+
+    for (const { eventName, trigger } of paintProperty.eventList) {
+      if (eventName === checkType) {
+        trigger();
       }
     }
   }
@@ -572,10 +580,10 @@ export default class Canvas {
             // this.opLock.click = true;
             this.updateTransform(transform);
           },
-          16,
+          0,
           {
             leading: true,
-            trailing: true,
+            trailing: false,
           },
         ),
         () => {
@@ -630,7 +638,7 @@ export default class Canvas {
           },
           1000,
           {
-            leading: true,
+            leading: false,
             trailing: true,
           },
         ),

@@ -17,6 +17,11 @@ export default class Paint {
   private canvas: Canvas;
   private geometryManager: GeometryManager;
 
+  private eventList: Array<{
+    eventName: string;
+    trigger: () => void;
+  }> = [];
+
   constructor(gaia: Gaia, id: string) {
     this.gaia = gaia;
 
@@ -67,6 +72,7 @@ export default class Paint {
       highlightList: this.highlightList,
       canvas: this.canvas,
       geometryManager: this.geometryManager,
+      eventList: this.eventList,
       gaia: this.gaia,
     };
   }
@@ -123,6 +129,13 @@ export default class Paint {
         }
         resolve();
       });
+    });
+  }
+
+  public onBlank(eventName: string, trigger: () => void) {
+    this.eventList.push({
+      eventName,
+      trigger,
     });
   }
 }
