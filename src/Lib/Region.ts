@@ -174,6 +174,11 @@ export class RenderingBlock {
     this.reRenderList = new Map([]);
     this.parent = null;
   }
+
+  public resetImage() {
+    this.state = RenderingState.unrendered;
+    this.image = null;
+  }
 }
 
 export class RenderingRegion {
@@ -264,6 +269,14 @@ export class RenderingRegion {
     for (let [key, renderingBlockMap] of this.data) {
       for (let [index, renderingBlock] of renderingBlockMap) {
         renderingBlock.reset();
+      }
+    }
+  }
+
+  public clearImage() {
+    for (let [key, renderingBlockMap] of this.data) {
+      for (let [index, renderingBlock] of renderingBlockMap) {
+        renderingBlock.resetImage();
       }
     }
   }

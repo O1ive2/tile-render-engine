@@ -104,8 +104,6 @@ export default class RenderWorker {
               });
               
             } else if(e.data.type === 'rerender') {
-              const width = e.data.width;
-              const height = e.data.height;
               const offsetX = e.data.offsetX;
               const offsetY = e.data.offsetY;
               const idList = e.data.idList;
@@ -132,7 +130,7 @@ export default class RenderWorker {
   
               ctx.drawImage(image,0,0);
   
-              rerender(ctx,width,height,shared.get(e.data.id),idList,typeList,reRenderList,highlightList,imageMap,offsetX,offsetY,realPieceToRenderingScale);
+              rerender(ctx,shared.get(e.data.id),idList,typeList,reRenderList,highlightList,imageMap,offsetX,offsetY,realPieceToRenderingScale);
   
               ctx.restore();
   
@@ -436,8 +434,6 @@ export default class RenderWorker {
   public passReRender = () => {
     return (
       ctx: OffscreenCanvasRenderingContext2D,
-      width: number,
-      height: number,
       shared: any,
       idList: any,
       typeList: any,
@@ -794,6 +790,7 @@ export default class RenderWorker {
         'state',
         RenderingState.rendered,
       );
+      paintProperty.canvas.render();
       this.isBusy = false;
       return;
     }
@@ -809,6 +806,7 @@ export default class RenderWorker {
           'state',
           RenderingState.rendered,
         );
+        paintProperty.canvas.render();
         this.isBusy = false;
 
         // const imageBitmap = e.data.image;
@@ -846,8 +844,6 @@ export default class RenderWorker {
 
   public reRender(
     id: string,
-    width: number,
-    height: number,
     offsetX: number,
     offsetY: number,
     level: number,
@@ -865,8 +861,6 @@ export default class RenderWorker {
       setTimeout(() => {
         this.reRender(
           id,
-          width,
-          height,
           offsetX,
           offsetY,
           level,
@@ -894,6 +888,7 @@ export default class RenderWorker {
         'state',
         RenderingState.rendered,
       );
+      paintProperty.canvas.render();
       this.isBusy = false;
       return;
     }
@@ -917,6 +912,8 @@ export default class RenderWorker {
           blockInfo.lock = false;
         }
 
+        paintProperty.canvas.render();
+
         this.isBusy = false;
         this.publisher.unsubscribe(cb);
       }
@@ -924,12 +921,11 @@ export default class RenderWorker {
 
     this.publisher.subscribe(cb);
 
+
     this.worker.postMessage(
       {
         type: 'rerender',
         id,
-        width,
-        height,
         realPieceToRenderingScale,
         offsetX,
         offsetY,
