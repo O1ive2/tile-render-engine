@@ -51,17 +51,7 @@ export default class Paint {
   }
 
   public resize(): void {
-    // 画布初始宽高
-    const originalWidth = 310;
-    const originalHeight = 242;
-    const canvasWidth = this.canvas.getWidth();
-    const canvasHeight = this.canvas.getHeight();
-    const scaleX = canvasWidth / originalWidth;
-    const scaleY = canvasHeight / originalHeight;
-    const scale = Math.min(scaleX, scaleY);
-    const offsetX = (canvasWidth * scale) / 2 - canvasWidth / 2;
-    const offsetY = (canvasHeight * scale) / 2 - canvasHeight / 2;
-    this.canvas.updateTransform({ k: scale, x: -offsetX, y: -offsetY });
+    this.canvas.updateTransform({ k: 1, x: 0, y: 0 });
   }
 
   public getProperty() {
