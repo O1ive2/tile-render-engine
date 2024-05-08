@@ -628,21 +628,26 @@ export default class Canvas {
         // }
       });
 
-      this.on(
-        'resize',
-        throttle(
-          (entry: ResizeObserverEntry) => {
-            const region = this.paint.getProperty().region;
-            region.clearImage();
-            this.flush(false);
-          },
-          1000,
-          {
-            leading: false,
-            trailing: true,
-          },
-        ),
-      );
+      const timer = setInterval(() => {
+        if (this.mainCanvas.clientWidth === 0 || this.mainCanvas.clientWidth === 0) {
+          return;
+        }
+        clearInterval(timer);
+        this.on(
+          'resize',
+          throttle(
+            (entry: ResizeObserverEntry) => {
+              this.paint.getProperty().region.clearImage();
+              this.flush(false);
+            },
+            1000,
+            {
+              leading: false,
+              trailing: true,
+            },
+          ),
+        );
+      }, 500);
     }
   }
 
