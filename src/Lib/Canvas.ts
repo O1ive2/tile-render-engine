@@ -402,6 +402,14 @@ export default class Canvas {
     this.render();
   }
 
+  public getOffsetX(): number {
+    return this.renderingOffsetX;
+  }
+
+  public getOffsetY(): number {
+    return this.renderingOffsetY;
+  }
+
   public getWidth(): number {
     return this.mainCanvas.width;
   }

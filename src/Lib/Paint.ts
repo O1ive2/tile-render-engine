@@ -36,16 +36,12 @@ export default class Paint {
 
   public zoom(scale: number): void {
     const newScale = scale * this.canvas.getCurrentScale();
-    // 当前画布宽高
-    const currentWidth = this.canvas.getWidth();
-    const currentHeight = this.canvas.getHeight();
-    // 缩放后画布宽高
-    const newWidth = currentWidth * newScale;
-    const newHeight = currentHeight * newScale;
+    // 当前画布中心
+    const centerX = this.canvas.getWidth() / 2;
+    const centerY = this.canvas.getHeight() / 2;
     // 缩放后画布偏移量
-    const offsetX = (newWidth - currentWidth) / 2;
-    const offsetY = (newHeight - currentHeight) / 2;
-
+    const offsetX = (centerX - this.canvas.getOffsetX()) * scale - centerX;
+    const offsetY = (centerY - this.canvas.getOffsetY()) * scale - centerY;
     // 更新缩放后的画布
     this.canvas.updateTransform({ k: newScale, x: -offsetX, y: -offsetY });
   }
