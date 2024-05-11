@@ -34,6 +34,22 @@ export default class Paint {
     this.geometryManager = new GeometryManager(this, id);
   }
 
+  public zoom(scale: number): void {
+    const newScale = scale * this.canvas.getCurrentScale();
+    // 当前画布中心
+    const centerX = this.canvas.getWidth() / 2;
+    const centerY = this.canvas.getHeight() / 2;
+    // 缩放后画布偏移量
+    const offsetX = (centerX - this.canvas.getOffsetX()) * scale - centerX;
+    const offsetY = (centerY - this.canvas.getOffsetY()) * scale - centerY;
+    // 更新缩放后的画布
+    this.canvas.updateTransform({ k: newScale, x: -offsetX, y: -offsetY });
+  }
+
+  public resize(): void {
+    this.canvas.updateTransform({ k: 1, x: 0, y: 0 });
+  }
+
   public getProperty() {
     return {
       id: this.id,
@@ -46,8 +62,6 @@ export default class Paint {
       gaia: this.gaia,
     };
   }
-
-  public zoom(): void {}
 
   public drawRect(rectProperty: RectProperty): void {
     this.geometryManager.collectRect(rectProperty);
