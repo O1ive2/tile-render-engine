@@ -8,6 +8,9 @@ import spriteInfo from "@/assets/sprite_mix.json";
 
 const paint: Paint = Gaia.init('#main-canvas') as Paint;
 
+// load sprite data
+paint.loadImage(spriteInfo).then(() => {
+
     Gaia.init({
       workers: 8,
       sprite: spriteInfo
@@ -25,6 +28,12 @@ const paint: Paint = Gaia.init('#main-canvas') as Paint;
       paint.drawText(property:TextProperty);
       paint.drawImage(property:ImageProperty);
       paint.drawPath(property:PathProperty);
+
+      // zoom
+      paint.zoom(scale);
+
+      // resize
+      paint.resize();
 
       // use flush to complete
       paint.flush().then(() => {
@@ -54,7 +63,7 @@ const paint: Paint = Gaia.init('#main-canvas') as Paint;
 
 
 
-      
+
       // full example
       const checkList: string[] = [];
 
