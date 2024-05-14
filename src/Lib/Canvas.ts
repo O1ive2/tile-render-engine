@@ -641,12 +641,21 @@ export default class Canvas {
           return;
         }
         clearInterval(timer);
+        let originalWidth = this.mainCanvas.clientWidth;
+        let originalHeight = this.mainCanvas.clientHeight;
         this.on(
           'resize',
           throttle(
             (entry: ResizeObserverEntry) => {
-              this.paint.getProperty().region.clearImage();
-              this.flush(false);
+              if (
+                originalWidth !== this.mainCanvas.clientWidth ||
+                originalHeight != this.mainCanvas.clientHeight
+              ) {
+                originalWidth = this.mainCanvas.clientWidth;
+                originalHeight = this.mainCanvas.clientHeight;
+                this.paint.getProperty().region.clearImage();
+                this.flush(false);
+              }
             },
             1000,
             {
