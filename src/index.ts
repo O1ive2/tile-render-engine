@@ -8,6 +8,7 @@ import {
   LineCapType,
   PathProperty,
   RectType,
+  SvgProperty,
   TextProperty,
 } from './Type/Geometry.type';
 
@@ -21,5 +22,6 @@ export {
   Paint,
   PathProperty,
   RectType,
+  SvgProperty,
   TextProperty,
 };

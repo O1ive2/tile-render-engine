@@ -3,6 +3,7 @@ export enum GeometryType {
   text,
   image,
   path,
+  svg,
 }
 
 export enum RectType {
@@ -105,20 +106,43 @@ export type PathProperty = {
   height?: number;
 };
 
+export type SvgProperty = {
+  id?: number | string;
+  x: number;
+  y: number;
+  width?: number;
+  height?: number;
+  renderingWidth?: number;
+  renderingHeight?: number;
+  fillStyle?: string;
+  svgId: string;
+  svgIndex?: number;
+  alpha?: number;
+  zIndex?: number;
+  propertyType?: GeometryType.svg;
+  hover?: Function;
+  hoverOut?: Function;
+  click?: Function;
+  dbclick?: Function;
+  rclick?: Function;
+};
+
 export type IDrawingDataModel = {
   rect: Map<number, RectProperty>;
   path: Map<number, PathProperty>;
   image: Map<number, ImageProperty>;
   text: Map<number, TextProperty>;
+  svg: Map<number, SvgProperty>;
 };
 
 export type ISpriteProperty = {
   [key: string]: {
     width: number;
     height: number;
-    normalImgBase64: string;
-    hoverImgBase64: string;
-    checkedImgBase64: string;
+    renderingWidth: number;
+    renderingHeight: number;
+    svgPaths: string[];
+    svgPolygons: string[];
   };
 };
 
@@ -131,4 +155,13 @@ export type ISpriteImageProperty = {
   normalImgBase64: string;
   hoverImgBase64: string;
   checkedImgBase64: string;
+};
+
+export type ISpriteSvgProperty = {
+  width: number;
+  height: number;
+  renderingWidth: number;
+  renderingHeight: number;
+  svgPaths: string[];
+  svgPolygons: string[];
 };

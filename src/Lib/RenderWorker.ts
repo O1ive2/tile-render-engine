@@ -19,28 +19,47 @@ export default class RenderWorker {
         `
           const render = ${this.passRender()}
           const rerender = ${this.passReRender()}
-          const parseImage = ${this.passParseImage()}
-  
+
           const imageMap = new Map();
+          const svgMap = new Map();
           const shared = new Map();
 
           const textDecoder = new TextDecoder();
   
           self.onmessage = async (e) => {
             if(e.data.type === 'init') {
-              const imageMapStr = e.data.sharedImageMap;
+              // image
+              // const imageMapStr = e.data.sharedImageMap;
   
-              const sharedImageMapData = new Uint8Array(imageMapStr);
-              const sharedImageMap = JSON.parse(textDecoder.decode(sharedImageMapData));
+              // const sharedImageMapData = new Uint8Array(imageMapStr);
+              // const sharedImageMap = JSON.parse(textDecoder.decode(sharedImageMapData));
+
+              // for(let key in sharedImageMap) {
+              //   const {width,height,normalImgBase64,hoverImgBase64,checkedImgBase64} = sharedImageMap[key];
+              //   imageMap.set(Number(key),{
+              //     width,
+              //     height,
+              //     img:await parseImage(normalImgBase64),
+              //     hoverImg:await parseImage(hoverImgBase64),
+              //     checkImg:await parseImage(checkedImgBase64)
+              //   });
+              // }
+
+              // svg
+              const svgMapStr = e.data.sharedSvgMap;
   
-              for(let key in sharedImageMap) {
-                const {width,height,normalImgBase64,hoverImgBase64,checkedImgBase64} = sharedImageMap[key];
-                imageMap.set(Number(key),{
+              const sharedSvgMapData = new Uint8Array(svgMapStr);
+              const sharedSvgMap = JSON.parse(textDecoder.decode(sharedSvgMapData));
+
+              for(let key in sharedSvgMap) {
+                const {width,height,renderingWidth,renderingHeight,svgPaths,svgPolygons} = sharedSvgMap[key];
+                svgMap.set(Number(key),{
                   width,
                   height,
-                  img:await parseImage(normalImgBase64),
-                  hoverImg:await parseImage(hoverImgBase64),
-                  checkImg:await parseImage(checkedImgBase64)
+                  renderingWidth,
+                  renderingHeight,
+                  svgPaths,
+                  svgPolygons
                 });
               }
   
@@ -51,11 +70,11 @@ export default class RenderWorker {
             } else if (e.data.type === 'decode_shared') {
                 
               const sharedData = e.data.shared;
-              
+
               sharedData.rect.other = JSON.parse(textDecoder.decode(new Uint8Array(sharedData.rect.other)));
               sharedData.text.other = JSON.parse(textDecoder.decode(new Uint8Array(sharedData.text.other)));
               sharedData.path.other = JSON.parse(textDecoder.decode(new Uint8Array(sharedData.path.other)));
-  
+              sharedData.svg.other = JSON.parse(textDecoder.decode(new Uint8Array(sharedData.svg.other)));
               shared.set(e.data.id,sharedData);
 
               self.postMessage({
@@ -64,7 +83,6 @@ export default class RenderWorker {
               });
 
             } else if(e.data.type === 'render') {
-  
               const width = e.data.width;
               const height = e.data.height;
               const offsetX = e.data.offsetX;
@@ -73,7 +91,7 @@ export default class RenderWorker {
               const typeList = e.data.typeList;
               const highlightList = e.data.highlightList;
               const realPieceToRenderingScale = e.data.realPieceToRenderingScale;
-  
+
               const level = e.data.level;
               const pieceIndex = e.data.pieceIndex;
   
@@ -87,7 +105,7 @@ export default class RenderWorker {
               ctx.rect(0,0,canvas.width,canvas.height);
               ctx.clip();
   
-              render(ctx,width,height,shared.get(e.data.id),idList,typeList,highlightList,imageMap,offsetX,offsetY,realPieceToRenderingScale);
+              render(ctx,width,height,shared.get(e.data.id),idList,typeList,highlightList,imageMap,svgMap,offsetX,offsetY,realPieceToRenderingScale);
               
               ctx.restore();
   
@@ -113,7 +131,6 @@ export default class RenderWorker {
               const realPieceToRenderingScale = e.data.realPieceToRenderingScale;
               const image = e.data.image;
   
-  
               const level = e.data.level;
               const pieceIndex = e.data.pieceIndex;
   
@@ -130,7 +147,7 @@ export default class RenderWorker {
   
               ctx.drawImage(image,0,0);
   
-              rerender(ctx,shared.get(e.data.id),idList,typeList,reRenderList,highlightList,imageMap,offsetX,offsetY,realPieceToRenderingScale);
+              rerender(ctx,shared.get(e.data.id),idList,typeList,reRenderList,highlightList,imageMap,svgMap,offsetX,offsetY,realPieceToRenderingScale);
   
               ctx.restore();
   
@@ -157,7 +174,7 @@ export default class RenderWorker {
     this.worker = new Worker(URL.createObjectURL(blob_str));
   }
 
-  public init(sharedImageMap: Uint8Array): Promise<void> {
+  public init(sharedSvgMap: Uint8Array): Promise<void> {
     return new Promise(async (resolve, reject) => {
       if (this.isInitialized) {
         console.error("Can't init twice!");
@@ -192,7 +209,7 @@ export default class RenderWorker {
 
       this.worker.postMessage({
         type: 'init',
-        sharedImageMap,
+        sharedSvgMap,
       });
     });
   }
@@ -228,6 +245,7 @@ export default class RenderWorker {
       typeList: any,
       highlightList: any,
       imageMap: any,
+      svgMap: any,
       offsetX: number,
       offsetY: number,
       realPieceToRenderingScale: number,
@@ -238,6 +256,7 @@ export default class RenderWorker {
       const sharedText = shared.text;
       const sharedImage = shared.image;
       const sharedPath = shared.path;
+      const sharedSvg = shared.svg;
 
       const globalLineCaps = ['butt', 'round', 'square'];
 
@@ -308,6 +327,9 @@ export default class RenderWorker {
           } else if (type === 2) {
             ctx.stroke();
             ctx.fill();
+          } else if (type === 4) {
+            ctx.stroke();
+            ctx.fill();
           }
 
           ctx.closePath();
@@ -335,17 +357,12 @@ export default class RenderWorker {
           const x = sharedImage.x[id];
           const y = sharedImage.y[id];
           const alpha = sharedImage.alpha[id] ?? 1;
-
           ctx.save();
-
           ctx.globalAlpha = alpha;
-
           let renderingImg = img;
-
           if (highlightList.data.get(2).has(id)) {
             // todo more property support
             const highlightProperty = highlightList.data.get(2).get(id);
-
             if (highlightProperty) {
               ctx.globalAlpha = highlightProperty.alpha || ctx.globalAlpha;
               if (highlightProperty.state === 'hover') {
@@ -357,9 +374,7 @@ export default class RenderWorker {
               }
             }
           }
-
           ctx.drawImage(renderingImg, x, y, width, height);
-
           ctx.restore();
         } else if (typeList[i] === 3) {
           const fromX = sharedPath.fromX[id];
@@ -420,6 +435,52 @@ export default class RenderWorker {
           ctx.closePath();
 
           ctx.restore();
+        } else if (typeList[i] === 4) {
+          const { width, height, renderingWidth, renderingHeight, svgPaths, svgPolygons } =
+            svgMap.get(sharedSvg.svgIndex[id]);
+
+          const x = sharedSvg.x[id];
+          const y = sharedSvg.y[id];
+          const alpha = sharedSvg.alpha[id] ?? 1;
+          const fillStyle = sharedSvg.other[id].fillStyle || '';
+
+          ctx.save();
+          // ctx.globalAlpha = alpha;
+
+          const svgCanvas = new OffscreenCanvas(width, height);
+          const svgCtx = svgCanvas.getContext('2d');
+          if (svgCtx) {
+            svgCtx.fillStyle = fillStyle || '';
+            svgCtx.globalAlpha = alpha;
+          }
+          if (highlightList.data.get(4).has(id)) {
+            const highlightProperty = highlightList.data.get(4).get(id);
+            if (highlightProperty) {
+              if (svgCtx) {
+                svgCtx.fillStyle = highlightProperty.fillStyle || svgCtx.fillStyle;
+                svgCtx.globalAlpha = highlightProperty.alpha || svgCtx.globalAlpha;
+              }
+            }
+          }
+
+          svgPaths.forEach((svgPath: string) => {
+            svgCtx?.fill(new Path2D(svgPath));
+          });
+
+          svgPolygons.forEach((svgPolygon: string) => {
+            const pointsArray = svgPolygon.split(' ').map(Number);
+            const path = new Path2D();
+            path.moveTo(pointsArray[0], pointsArray[1]);
+            for (let i = 2; i < pointsArray.length; i += 2) {
+              path.lineTo(pointsArray[i], pointsArray[i + 1]);
+            }
+            path.closePath();
+            svgCtx?.fill(path);
+          });
+
+          ctx.drawImage(svgCanvas, x, y, renderingWidth, renderingHeight);
+
+          ctx.restore();
         }
       }
 
@@ -440,6 +501,7 @@ export default class RenderWorker {
       reRenderList: any,
       highlightList: any,
       imageMap: any,
+      svgMap: any,
       offsetX: number,
       offsetY: number,
       realPieceToRenderingScale: number,
@@ -460,6 +522,7 @@ export default class RenderWorker {
       const sharedText = shared.text;
       const sharedImage = shared.image;
       const sharedPath = shared.path;
+      const sharedSvg = shared.svg;
 
       const globalLineCaps = ['butt', 'round', 'square'];
 
@@ -497,6 +560,12 @@ export default class RenderWorker {
           y = sharedPath.y[id];
           width = sharedPath.width[id];
           height = sharedPath.height[id];
+        } else if (type === 4) {
+          const svgInfo = svgMap.get(sharedSvg.svgIndex[id]);
+          x = sharedSvg.x[id];
+          y = sharedSvg.y[id];
+          width = svgInfo.renderingWidth;
+          height = svgInfo.renderingHeight;
         }
 
         const filteredList: Array<{ id: number; type: number }> = [];
@@ -535,6 +604,11 @@ export default class RenderWorker {
             containerY = sharedPath.y[containerId];
             containerWidth = sharedPath.width[containerId];
             containerHeight = sharedPath.height[containerId];
+          } else if (containerType === 4) {
+            containerX = sharedSvg.x[containerId];
+            containerY = sharedSvg.y[containerId];
+            containerWidth = svgMap.get(<number>sharedSvg.svgIndex[containerId]).renderingWidth;
+            containerHeight = svgMap.get(<number>sharedSvg.svgIndex[containerId]).renderingHeight;
           }
 
           if (
@@ -624,6 +698,9 @@ export default class RenderWorker {
             } else if (type === 2) {
               ctx.stroke();
               ctx.fill();
+            } else if (type === 4) {
+              ctx.stroke();
+              ctx.fill();
             }
 
             ctx.closePath();
@@ -651,13 +728,9 @@ export default class RenderWorker {
             const x = sharedImage.x[id];
             const y = sharedImage.y[id];
             const alpha = sharedImage.alpha[id] ?? 1;
-
             ctx.save();
-
             ctx.globalAlpha = alpha;
-
             let renderingImg = img;
-
             if (highlightList.data.get(2).has(id)) {
               // todo more property support
               const highlightProperty = highlightList.data.get(2).get(id);
@@ -672,9 +745,7 @@ export default class RenderWorker {
                 }
               }
             }
-
             ctx.drawImage(renderingImg, x, y, width, height);
-
             ctx.restore();
           } else if (type === 3) {
             const fromX = sharedPath.fromX[id];
@@ -735,6 +806,51 @@ export default class RenderWorker {
             ctx.closePath();
 
             ctx.restore();
+          } else if (type === 4) {
+            const { width, height, renderingWidth, renderingHeight, svgPaths, svgPolygons } =
+              svgMap.get(sharedSvg.svgIndex[id]);
+
+            const x = sharedSvg.x[id];
+            const y = sharedSvg.y[id];
+            const alpha = sharedSvg.alpha[id] ?? 1;
+            const fillStyle = sharedSvg.other[id].fillStyle || '';
+
+            ctx.save();
+
+            const svgCanvas = new OffscreenCanvas(width, height);
+            const svgCtx = svgCanvas.getContext('2d');
+            if (svgCtx) {
+              svgCtx.fillStyle = fillStyle || '';
+              svgCtx.globalAlpha = alpha;
+            }
+            if (highlightList.data.get(4).has(id)) {
+              const highlightProperty = highlightList.data.get(4).get(id);
+              if (highlightProperty) {
+                if (svgCtx) {
+                  svgCtx.fillStyle = highlightProperty.fillStyle || svgCtx.fillStyle;
+                  svgCtx.globalAlpha = highlightProperty.alpha || svgCtx.globalAlpha;
+                }
+              }
+            }
+
+            svgPaths.forEach((svgPath: string) => {
+              svgCtx?.fill(new Path2D(svgPath));
+            });
+
+            svgPolygons.forEach((svgPolygon: string) => {
+              const pointsArray = svgPolygon.split(' ').map(Number);
+              const path = new Path2D();
+              path.moveTo(pointsArray[0], pointsArray[1]);
+              for (let i = 2; i < pointsArray.length; i += 2) {
+                path.lineTo(pointsArray[i], pointsArray[i + 1]);
+              }
+              path.closePath();
+              svgCtx?.fill(path);
+            });
+
+            ctx.drawImage(svgCanvas, x, y, renderingWidth, renderingHeight);
+
+            ctx.restore();
           }
         }
 
@@ -781,7 +897,6 @@ export default class RenderWorker {
     const paintProperty = paint.getProperty();
 
     const blockInfo = paintProperty.region.getRenderingBlock(level, pieceIndex);
-
     if (!blockInfo || blockInfo.idList.length <= 0) {
       paintProperty.region.updateRenderingBlockAttribute(level, pieceIndex, 'image', null);
       paintProperty.region.updateRenderingBlockAttribute(
@@ -859,15 +974,7 @@ export default class RenderWorker {
 
     if (blockInfo?.lock) {
       setTimeout(() => {
-        this.reRender(
-          id,
-          offsetX,
-          offsetY,
-          level,
-          pieceIndex,
-          realPieceToRenderingScale,
-          paint,
-        );
+        this.reRender(id, offsetX, offsetY, level, pieceIndex, realPieceToRenderingScale, paint);
       }, 0);
       return;
     }
@@ -920,7 +1027,6 @@ export default class RenderWorker {
     };
 
     this.publisher.subscribe(cb);
-
 
     this.worker.postMessage(
       {

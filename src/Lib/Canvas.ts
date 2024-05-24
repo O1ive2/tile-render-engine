@@ -1,5 +1,5 @@
 import throttle from 'lodash/throttle';
-import { ImageProperty, RectProperty } from '../Type/Geometry.type';
+import { ImageProperty, RectProperty, SvgProperty } from '../Type/Geometry.type';
 import Paint from './Paint';
 import { RenderingBlock, RenderingState } from './Region';
 import Util from './Util';
@@ -109,6 +109,7 @@ export default class Canvas {
       text: sharedText,
       image: sharedImage,
       path: sharedPath,
+      svg: sharedSvg,
     } = this.paint.getProperty().geometryManager.getSerializedData();
 
     // origin
@@ -116,9 +117,13 @@ export default class Canvas {
     const originalTextData = this.paint.getProperty().geometryManager.getOriginalTextList();
     const originalImageData = this.paint.getProperty().geometryManager.getOriginalImageList();
     const originalPathData = this.paint.getProperty().geometryManager.getOriginalPathList();
+    const originalSvgData = this.paint.getProperty().geometryManager.getOriginalSvgList();
 
     // image map
     const imageMap = this.paint.getProperty().gaia.getProperty().spriteIdImageMap;
+
+    // svg map
+    const svgMap = this.paint.getProperty().gaia.getProperty().spriteIdSvgMap;
 
     // remove hover state
     for (let [key, { type, id }] of this.hoverList) {
@@ -138,7 +143,6 @@ export default class Canvas {
           width: 0,
           height: 0,
         };
-
         minX = (image.x - boundaryMinX) * scale + totalOffsetX;
         minY = (image.y - boundaryMinY) * scale + totalOffsetY;
         maxX = minX + width * scale;
@@ -152,6 +156,16 @@ export default class Canvas {
         minY = ((path?.y ?? 0) - boundaryMinY) * scale + totalOffsetY;
         maxX = minX + width * scale;
         maxY = minY + height * scale;
+      } else if (type === 4) {
+        const svg = <SvgProperty>originalSvgData.get(id);
+        const { renderingWidth, renderingHeight } = svgMap.get(sharedSvg.svgIndex[id]) ?? {
+          renderingWidth: 0,
+          renderingHeight: 0,
+        };
+        minX = (svg.x - boundaryMinX) * scale + totalOffsetX;
+        minY = (svg.y - boundaryMinY) * scale + totalOffsetY;
+        maxX = minX + renderingWidth * scale;
+        maxY = minY + renderingHeight * scale;
       }
 
       if (!(pointerX >= minX && pointerX <= maxX && pointerY >= minY && pointerY <= maxY)) {
@@ -213,6 +227,14 @@ export default class Canvas {
         x = originalPathData.get(id)?.x ?? 0;
         y = originalPathData.get(id)?.y ?? 0;
         originalData = originalPathData;
+      } else if (type === 4) {
+        const svgInfo = svgMap.get(sharedSvg.svgIndex[id]);
+        sharedItem = sharedSvg;
+        sharedItemWidth = svgInfo?.renderingWidth ?? 0;
+        sharedItemHeight = svgInfo?.renderingHeight ?? 0;
+        x = sharedItem.x[id];
+        y = sharedItem.y[id];
+        originalData = originalSvgData;
       }
 
       const currentGeometry = <any>originalData?.get(id);
@@ -283,6 +305,7 @@ export default class Canvas {
       text: sharedText,
       image: sharedImage,
       path: sharedPath,
+      svg: sharedSvg,
     } = paintProperty.geometryManager.getSerializedData();
 
     // origin
@@ -290,9 +313,13 @@ export default class Canvas {
     const originalTextData = paintProperty.geometryManager.getOriginalTextList();
     const originalImageData = paintProperty.geometryManager.getOriginalImageList();
     const originalPathData = paintProperty.geometryManager.getOriginalPathList();
+    const originalSvgData = paintProperty.geometryManager.getOriginalSvgList();
 
     // image map
     const imageMap = paintProperty.gaia.getProperty().spriteIdImageMap;
+
+    // svg map
+    const svgMap = paintProperty.gaia.getProperty().spriteIdSvgMap;
 
     // if (xIndex < 0 || xIndex >= sideNumber || yIndex < 0 || yIndex >= sideNumber) {
     //   return;
@@ -343,6 +370,14 @@ export default class Canvas {
         x = originalPathData.get(id)?.x ?? 0;
         y = originalPathData.get(id)?.y ?? 0;
         originalData = originalPathData;
+      } else if (type === 4) {
+        const svgInfo = svgMap.get(sharedSvg.svgIndex[id]);
+        sharedItem = sharedSvg;
+        sharedItemWidth = svgInfo?.renderingWidth ?? 0;
+        sharedItemHeight = svgInfo?.renderingHeight ?? 0;
+        x = sharedItem.x[id];
+        y = sharedItem.y[id];
+        originalData = originalSvgData;
       }
 
       const currentGeometry = <any>originalData?.get(id);
