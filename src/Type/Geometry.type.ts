@@ -141,8 +141,10 @@ export type ISpriteProperty = {
     height: number;
     renderingWidth: number;
     renderingHeight: number;
-    svgPaths: string[];
-    svgPolygons: string[];
+    svgSolidPaths: string[];
+    svgSolidPolygons: string[];
+    svgDashedPaths: string[];
+    svgDashedPolygons: string[];
   };
 };
 
@@ -162,6 +164,8 @@ export type ISpriteSvgProperty = {
   height: number;
   renderingWidth: number;
   renderingHeight: number;
-  svgPaths: string[];
-  svgPolygons: string[];
+  svgSolidPaths: string[];
+  svgSolidPolygons: string[];
+  svgDashedPaths: string[];
+  svgDashedPolygons: string[];
 };

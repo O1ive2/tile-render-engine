@@ -37,8 +37,16 @@ class Gaia {
     return new Promise((resolve) => {
       let i = 0;
       for (let key in sprite) {
-        const { width, height, renderingWidth, renderingHeight, svgPaths, svgPolygons } =
-          sprite[key];
+        const {
+          width,
+          height,
+          renderingWidth,
+          renderingHeight,
+          svgSolidPaths,
+          svgSolidPolygons,
+          svgDashedPaths,
+          svgDashedPolygons,
+        } = sprite[key];
         // image
         // const img = new Image();
         // const hoverImg = new Image();
@@ -65,8 +73,10 @@ class Gaia {
           height,
           renderingWidth,
           renderingHeight,
-          svgPaths,
-          svgPolygons,
+          svgSolidPaths,
+          svgSolidPolygons,
+          svgDashedPaths,
+          svgDashedPolygons,
         });
         i++;
       }
@@ -75,15 +85,26 @@ class Gaia {
       const svgHash: ISpriteProperty = {};
       for (const [
         key,
-        { width, height, renderingWidth, renderingHeight, svgPaths, svgPolygons },
+        {
+          width,
+          height,
+          renderingWidth,
+          renderingHeight,
+          svgSolidPaths,
+          svgSolidPolygons,
+          svgDashedPaths,
+          svgDashedPolygons,
+        },
       ] of this.spriteIdSvgMap) {
         svgHash[key] = {
           width,
           height,
           renderingWidth,
           renderingHeight,
-          svgPaths,
-          svgPolygons,
+          svgSolidPaths,
+          svgSolidPolygons,
+          svgDashedPaths,
+          svgDashedPolygons,
         };
       }
 

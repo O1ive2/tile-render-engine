@@ -30,7 +30,7 @@ export default class RenderWorker {
             if(e.data.type === 'init') {
               // image
               // const imageMapStr = e.data.sharedImageMap;
-  
+
               // const sharedImageMapData = new Uint8Array(imageMapStr);
               // const sharedImageMap = JSON.parse(textDecoder.decode(sharedImageMapData));
 
@@ -52,14 +52,16 @@ export default class RenderWorker {
               const sharedSvgMap = JSON.parse(textDecoder.decode(sharedSvgMapData));
 
               for(let key in sharedSvgMap) {
-                const {width,height,renderingWidth,renderingHeight,svgPaths,svgPolygons} = sharedSvgMap[key];
+                const {width,height,renderingWidth,renderingHeight,svgSolidPaths,svgSolidPolygons,svgDashedPaths,svgDashedPolygons} = sharedSvgMap[key];
                 svgMap.set(Number(key),{
                   width,
                   height,
                   renderingWidth,
                   renderingHeight,
-                  svgPaths,
-                  svgPolygons
+                  svgSolidPaths,
+                  svgSolidPolygons,
+                  svgDashedPaths,
+                  svgDashedPolygons
                 });
               }
   
@@ -146,7 +148,7 @@ export default class RenderWorker {
               ctx.clip();
   
               ctx.drawImage(image,0,0);
-  
+
               rerender(ctx,shared.get(e.data.id),idList,typeList,reRenderList,highlightList,imageMap,svgMap,offsetX,offsetY,realPieceToRenderingScale);
   
               ctx.restore();
@@ -436,19 +438,32 @@ export default class RenderWorker {
 
           ctx.restore();
         } else if (typeList[i] === 4) {
-          const { width, height, renderingWidth, renderingHeight, svgPaths, svgPolygons } =
-            svgMap.get(sharedSvg.svgIndex[id]);
-
+          const {
+            width,
+            height,
+            renderingWidth,
+            renderingHeight,
+            svgSolidPaths,
+            svgSolidPolygons,
+            svgDashedPaths,
+            svgDashedPolygons,
+          } = svgMap.get(sharedSvg.svgIndex[id]);
           const x = sharedSvg.x[id];
           const y = sharedSvg.y[id];
           const alpha = sharedSvg.alpha[id] ?? 1;
           const fillStyle = sharedSvg.other[id].fillStyle || '';
 
           ctx.save();
-          // ctx.globalAlpha = alpha;
+          ctx.globalAlpha = alpha;
 
           const svgCanvas = new OffscreenCanvas(width, height);
-          const svgCtx = svgCanvas.getContext('2d');
+          const svgCtx = svgCanvas.getContext('2d', {
+            willReadFrequently: true,
+          });
+
+          let svgPaths = svgSolidPaths;
+          let svgPolygons = svgSolidPolygons;
+
           if (svgCtx) {
             svgCtx.fillStyle = fillStyle || '';
             svgCtx.globalAlpha = alpha;
@@ -456,9 +471,15 @@ export default class RenderWorker {
           if (highlightList.data.get(4).has(id)) {
             const highlightProperty = highlightList.data.get(4).get(id);
             if (highlightProperty) {
+              ctx.globalAlpha = highlightProperty.alpha || ctx.globalAlpha;
               if (svgCtx) {
                 svgCtx.fillStyle = highlightProperty.fillStyle || svgCtx.fillStyle;
                 svgCtx.globalAlpha = highlightProperty.alpha || svgCtx.globalAlpha;
+              }
+              if (highlightProperty.state === 'hover') {
+                svgPaths = svgDashedPaths;
+                svgPolygons = svgDashedPolygons;
+                svgCtx?.clearRect(0, 0, svgCanvas.width, svgCanvas.height);
               }
             }
           }
@@ -477,6 +498,8 @@ export default class RenderWorker {
             path.closePath();
             svgCtx?.fill(path);
           });
+
+          ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
           ctx.drawImage(svgCanvas, x, y, renderingWidth, renderingHeight);
 
@@ -807,8 +830,16 @@ export default class RenderWorker {
 
             ctx.restore();
           } else if (type === 4) {
-            const { width, height, renderingWidth, renderingHeight, svgPaths, svgPolygons } =
-              svgMap.get(sharedSvg.svgIndex[id]);
+            const {
+              width,
+              height,
+              renderingWidth,
+              renderingHeight,
+              svgSolidPaths,
+              svgSolidPolygons,
+              svgDashedPaths,
+              svgDashedPolygons,
+            } = svgMap.get(sharedSvg.svgIndex[id]);
 
             const x = sharedSvg.x[id];
             const y = sharedSvg.y[id];
@@ -816,9 +847,14 @@ export default class RenderWorker {
             const fillStyle = sharedSvg.other[id].fillStyle || '';
 
             ctx.save();
+            ctx.globalAlpha = alpha;
 
             const svgCanvas = new OffscreenCanvas(width, height);
-            const svgCtx = svgCanvas.getContext('2d');
+            const svgCtx = svgCanvas.getContext('2d', { willReadFrequently: true });
+
+            let svgPaths = svgSolidPaths;
+            let svgPolygons = svgSolidPolygons;
+
             if (svgCtx) {
               svgCtx.fillStyle = fillStyle || '';
               svgCtx.globalAlpha = alpha;
@@ -826,9 +862,15 @@ export default class RenderWorker {
             if (highlightList.data.get(4).has(id)) {
               const highlightProperty = highlightList.data.get(4).get(id);
               if (highlightProperty) {
+                ctx.globalAlpha = highlightProperty.alpha || ctx.globalAlpha;
                 if (svgCtx) {
                   svgCtx.fillStyle = highlightProperty.fillStyle || svgCtx.fillStyle;
                   svgCtx.globalAlpha = highlightProperty.alpha || svgCtx.globalAlpha;
+                }
+                if (highlightProperty.state === 'hover') {
+                  svgPaths = svgDashedPaths;
+                  svgPolygons = svgDashedPolygons;
+                  svgCtx?.clearRect(0, 0, svgCanvas.width, svgCanvas.height);
                 }
               }
             }
@@ -848,7 +890,9 @@ export default class RenderWorker {
               svgCtx?.fill(path);
             });
 
-            ctx.drawImage(svgCanvas, x, y, renderingWidth, renderingHeight);
+            ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+
+            ctx.drawImage(svgCanvas.transferToImageBitmap(), x, y, renderingWidth, renderingHeight);
 
             ctx.restore();
           }
