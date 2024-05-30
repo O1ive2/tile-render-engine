@@ -99,7 +99,7 @@ paint.loadImage(spriteInfo).then(() => {
           }
         });
 
-                  paint.drawSvg({
+        paint.drawSvg({
             id: handle_name,
             x,
             y,
