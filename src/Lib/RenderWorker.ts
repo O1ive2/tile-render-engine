@@ -888,7 +888,7 @@ export default class RenderWorker {
               svgCtx?.fill(path);
             });
 
-            ctx.drawImage(svgCanvas.transferToImageBitmap(), x, y, renderingWidth, renderingHeight);
+            ctx.drawImage(svgCanvas, x, y, renderingWidth, renderingHeight);
 
             ctx.restore();
           }
