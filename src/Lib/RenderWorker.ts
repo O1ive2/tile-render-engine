@@ -499,8 +499,6 @@ export default class RenderWorker {
             svgCtx?.fill(path);
           });
 
-          ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-
           ctx.drawImage(svgCanvas, x, y, renderingWidth, renderingHeight);
 
           ctx.restore();
@@ -889,8 +887,6 @@ export default class RenderWorker {
               path.closePath();
               svgCtx?.fill(path);
             });
-
-            ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
             ctx.drawImage(svgCanvas.transferToImageBitmap(), x, y, renderingWidth, renderingHeight);
 
