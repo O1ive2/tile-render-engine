@@ -1,4 +1,10 @@
-import { ImageProperty, PathProperty, RectProperty, TextProperty } from '../Type/Geometry.type';
+import {
+  ImageProperty,
+  PathProperty,
+  RectProperty,
+  SvgProperty,
+  TextProperty,
+} from '../Type/Geometry.type';
 import Canvas from './Canvas';
 import Gaia from './Gaia';
 import GeometryManager from './GeometryManager';
@@ -79,6 +85,10 @@ export default class Paint {
     this.geometryManager.collectPath(pathProperty);
   }
 
+  public drawSvg(svgProperty: SvgProperty): void {
+    this.geometryManager.collectSvg(svgProperty);
+  }
+
   public setProperty(idList: Array<number | string>, property: any): void {
     const highlightList = this.highlightList;
 
@@ -92,7 +102,6 @@ export default class Paint {
         } else {
           highlightList.get(type)?.delete(id);
         }
-
         this.canvas.updateCanvasByGeometryId(type, id);
       }
     }

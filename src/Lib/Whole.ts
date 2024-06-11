@@ -1,4 +1,10 @@
-import { ImageProperty, PathProperty, RectProperty, TextProperty } from '../Type/Geometry.type';
+import {
+  ImageProperty,
+  PathProperty,
+  RectProperty,
+  SvgProperty,
+  TextProperty,
+} from '../Type/Geometry.type';
 import Paint from './Paint';
 
 export class Whole {
@@ -22,6 +28,7 @@ export class Whole {
     text?: Map<number, TextProperty>;
     image?: Map<number, ImageProperty>;
     path?: Map<number, PathProperty>;
+    svg?: Map<number, SvgProperty>;
   }) {
     let minX = Number.POSITIVE_INFINITY;
     let minY = Number.POSITIVE_INFINITY;
@@ -64,11 +71,33 @@ export class Whole {
       }
     }
 
+    if (list.svg) {
+      for (const [id, svg] of list.svg) {
+        minX = Math.min(
+          minX,
+          (svg.renderingWidth || 0) < 0 ? svg.x + (svg.renderingWidth || 0) : svg.x,
+        );
+        minY = Math.min(
+          minY,
+          (svg.renderingHeight || 0) < 0 ? svg.y + (svg.renderingHeight || 0) : svg.y,
+        );
+        maxX = Math.max(
+          maxX,
+          (svg.renderingWidth || 0) < 0 ? svg.x : svg.x + (svg.renderingWidth || 0),
+        );
+        maxY = Math.max(
+          maxY,
+          (svg.renderingHeight || 0) < 0 ? svg.y : svg.y + (svg.renderingHeight || 0),
+        );
+      }
+    }
+
     if (
       list.rect?.size === 0 &&
       list.text?.size === 0 &&
       list.image?.size === 0 &&
-      list.path?.size === 0
+      list.path?.size === 0 &&
+      list.svg?.size === 0
     ) {
       minX = 0;
       minY = 0;

@@ -6,6 +6,7 @@ export class Highlight {
     [GeometryType.text, new Map()],
     [GeometryType.image, new Map()],
     [GeometryType.path, new Map()],
+    [GeometryType.svg, new Map()],
   ]);
 
   constructor() {}
@@ -20,6 +21,7 @@ export class Highlight {
       [GeometryType.text, new Map()],
       [GeometryType.image, new Map()],
       [GeometryType.path, new Map()],
+      [GeometryType.svg, new Map()],
     ]);
   }
 }

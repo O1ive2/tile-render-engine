@@ -4,6 +4,7 @@ import {
   PathProperty,
   RectProperty,
   RectType,
+  SvgProperty,
   TextProperty,
 } from '../Type/Geometry.type';
 import Paint from './Paint';
@@ -25,6 +26,7 @@ export default class GeometryManager {
     path: new Map(),
     image: new Map(),
     text: new Map(),
+    svg: new Map(),
   };
 
   private autoIdMap: Map<number | string, { id: number; type: number }> = new Map();
@@ -83,6 +85,16 @@ export default class GeometryManager {
       y: null,
       width: null,
       height: null,
+    },
+    svg: {
+      id: null,
+      x: null,
+      y: null,
+      svgIndex: null,
+      alpha: null,
+      zIndex: null,
+      propertyType: null,
+      other: null,
     },
   };
 
@@ -238,6 +250,21 @@ export default class GeometryManager {
     this.drawingDataModel.path.set(path.id, path);
   }
 
+  public collectSvg(svg: SvgProperty) {
+    const gaiaProperty = this.paint.getProperty().gaia.getProperty();
+    if (svg.id) {
+      this.autoIdMap.set(svg.id, { id: this.drawingDataModel.svg.size, type: 4 });
+    }
+    svg.id = this.drawingDataModel.svg.size;
+    svg.zIndex = this.currentZIndex++;
+    svg.svgIndex = gaiaProperty.spriteNameIdMap.get(svg.svgId);
+    svg.width = gaiaProperty.spriteIdSvgMap.get(<number>svg.svgIndex)?.renderingWidth ?? 0;
+    svg.height = gaiaProperty.spriteIdSvgMap.get(<number>svg.svgIndex)?.renderingHeight ?? 0;
+    svg.propertyType = 4;
+
+    this.drawingDataModel.svg.set(svg.id, svg);
+  }
+
   public getOriginalRectList(): Map<number, RectProperty> {
     return this.drawingDataModel.rect;
   }
@@ -254,12 +281,17 @@ export default class GeometryManager {
     return this.drawingDataModel.path;
   }
 
+  public getOriginalSvgList(): Map<number, SvgProperty> {
+    return this.drawingDataModel.svg;
+  }
+
   public getOriginalDataByType(type: number) {
     const originalList: Array<any> = [
       this.drawingDataModel.rect,
       this.drawingDataModel.text,
       this.drawingDataModel.image,
       this.drawingDataModel.path,
+      this.drawingDataModel.svg,
     ];
     return originalList[type];
   }
@@ -384,7 +416,6 @@ export default class GeometryManager {
       sharedImage.zIndex[i] = item.zIndex;
       sharedImage.propertyType[i] = item.propertyType;
     });
-
   }
 
   public serializePath(): void {
@@ -438,6 +469,40 @@ export default class GeometryManager {
     sharedPath.other.set(encodedData);
   }
 
+  public serializeSvg(): void {
+    const svgNumber = this.drawingDataModel.svg.size;
+    const sharedSvg = this.serializedSharedData.svg;
+
+    sharedSvg.id = new Uint32Array(new SharedArrayBuffer(svgNumber * 4));
+    sharedSvg.x = new Float32Array(new SharedArrayBuffer(svgNumber * 4));
+    sharedSvg.y = new Float32Array(new SharedArrayBuffer(svgNumber * 4));
+    sharedSvg.svgIndex = new Uint8Array(new SharedArrayBuffer(svgNumber));
+    sharedSvg.alpha = new Float32Array(new SharedArrayBuffer(svgNumber * 4));
+    sharedSvg.zIndex = new Uint32Array(new SharedArrayBuffer(svgNumber * 4));
+    sharedSvg.propertyType = new Uint8Array(new SharedArrayBuffer(svgNumber));
+
+    const textEncoder = new TextEncoder();
+    const encodedData = textEncoder.encode(
+      JSON.stringify(
+        Array.from(this.drawingDataModel.svg.values()).map((item, i) => {
+          sharedSvg.x[i] = item.x;
+          sharedSvg.y[i] = item.y;
+          sharedSvg.svgIndex[i] = item.svgIndex;
+          sharedSvg.alpha[i] = item.alpha;
+          sharedSvg.zIndex[i] = item.zIndex;
+          sharedSvg.propertyType[i] = item.propertyType;
+
+          return {
+            fillStyle: item.fillStyle,
+          };
+        }),
+      ),
+    );
+
+    sharedSvg.other = new Uint8Array(encodedData.length);
+    sharedSvg.other.set(encodedData);
+  }
+
   public getSerializedRectData(): any {
     return this.serializedSharedData.rect;
   }
@@ -452,6 +517,10 @@ export default class GeometryManager {
 
   public getSerializedPathData(): any {
     return this.serializedSharedData.path;
+  }
+
+  public getSerializedSvgData(): any {
+    return this.serializedSharedData.svg;
   }
 
   public getSerializedData(): any {
@@ -475,6 +544,9 @@ export default class GeometryManager {
     // image serialize
     this.serializeImage();
 
+    // svg serialize
+    this.serializeSvg();
+
     this.paint.getProperty().whole.initOriginalBoundary(this.drawingDataModel);
 
     this.paint.getProperty().region.init(this.drawingDataModel);
@@ -496,6 +568,7 @@ export default class GeometryManager {
     this.drawingDataModel.text = new Map([]);
     this.drawingDataModel.image = new Map([]);
     this.drawingDataModel.path = new Map([]);
+    this.drawingDataModel.svg = new Map([]);
 
     this.serializedSharedData = {
       rect: {
@@ -551,6 +624,16 @@ export default class GeometryManager {
         y: null,
         width: null,
         height: null,
+      },
+      svg: {
+        id: null,
+        x: null,
+        y: null,
+        svgIndex: null,
+        alpha: null,
+        zIndex: null,
+        propertyType: null,
+        other: null,
       },
     };
   }

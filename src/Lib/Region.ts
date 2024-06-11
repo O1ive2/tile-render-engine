@@ -4,6 +4,7 @@ import {
   ImageProperty,
   PathProperty,
   RectProperty,
+  SvgProperty,
   TextProperty,
 } from '../Type/Geometry.type';
 import Paint from './Paint';
@@ -124,6 +125,10 @@ export class RenderingBlock {
             selfOffsetY = -selfHeight / 2 - (item.y ?? 0) + item.fromY;
           }
         }
+      } else if (type === GeometryType.svg) {
+        item = <SvgProperty>geometryData.svg.get(id);
+        selfWidth = <number>item.width;
+        selfHeight = <number>item.height;
       }
 
       if (

@@ -28,6 +28,7 @@ paint.loadImage(spriteInfo).then(() => {
       paint.drawText(property:TextProperty);
       paint.drawImage(property:ImageProperty);
       paint.drawPath(property:PathProperty);
+      paint.drawSvg(property:SvgProperty);
 
       // zoom
       paint.zoom(scale);
@@ -97,6 +98,39 @@ paint.loadImage(spriteInfo).then(() => {
             })
           }
         });
+
+        paint.drawSvg({
+            id: handle_name,
+            x,
+            y,
+            fillStyle: '#FF9C6E',
+            svgId: type,
+            hover: () => {
+              if (!checkList.current.includes(handle_name)) {
+                paint.setProperty([handle_name], {
+                  fillStyle: '#5CDBD3',
+                  state: 'hover',
+                });
+              }
+            },
+            hoverOut: () => {
+              if (!checkList.current.includes(handle_name)) {
+                paint.setProperty([handle_name], null);
+              }
+            },
+            click: () => {
+              paint.setProperty(checkList.current, null);
+              checkList.current = [handle_name];
+              paint.setProperty([handle_name], {
+                fillStyle: 'white',
+              });
+              hierarchyModel.updateLeafSelected({ handle_name, name });
+            },
+            rclick: () => {
+              setRightSelectCell(curInstance);
+              setRightSelectNet(null);
+            },
+          });
 
         paint.drawText({
           x: x + width / 2 - 1,
