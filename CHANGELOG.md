@@ -1,5 +1,7 @@
 # ChangeLog
 
+## 0.3.2
+
 ### Features
 
 - **新增 svg 绘制接口：** 新增`paint.drawSvg`方法，用于绘制 svg 图形
