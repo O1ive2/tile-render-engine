@@ -1,37 +1,54 @@
 {
-  "name": "@raina/gaia",
+  "name": "@raina/gaia-client",
   "version": "0.3.2",
   "description": "",
   "license": "ISC",
-  "author": "Zhang Yangjun",
-  "main": "dist/index.js",
-  "typings": "types/index.d.ts",
+  "author": "Haoyi Wan",
+  "main": "dist/App.js",
   "files": [
     "dist",
     "types"
   ],
   "scripts": {
+    "start": "react-scripts start",
     "build": "raina build",
-    "dev": "raina dev",
-    "test": "echo 'no test'",
-    "deploy": "raina deploy"
+    "test": "echo 'no test'"
   },
   "dependencies": {
     "@msgpack/msgpack": "^3.0.0-beta2",
-    "lodash": "^4.17.21"
+    "lodash": "^4.17.21",
+    "cra-template-typescript": "1.2.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-scripts": "5.0.1"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
   },
   "devDependencies": {
-    "@types/lodash": "^4.14.202",
     "@types/node": "^18.14.0",
-    "@types/offscreencanvas": "^2019.7.0",
-    "@typescript-eslint/eslint-plugin": "^5.59.1",
-    "@typescript-eslint/parser": "^5.59.1",
-    "eslint": "^8.39.0",
-    "prettier": "^2.8.8",
-    "prettier-plugin-organize-imports": "^3.2.2",
-    "prettier-plugin-packagejson": "^2.4.3"
+    "typescript": "^4.9.5",
+    "chokidar": "3.5.3",
+    "fs-extra": "11.1.0",
+    "@babel/plugin-proposal-private-property-in-object": "^7.21.11"
   },
   "rainaConfig": {
     "type": "npm"
-  }
+  },
+  "typings": "types/index.d.ts"
 }
