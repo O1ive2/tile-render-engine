@@ -1,207 +1,46 @@
-## Usage
+# Getting Started with Create React App
 
-```Typescript
-import { Gaia, Paint,RectProperty,TextProperty,ImageProperty,PathProperty, LineCapType } from '@raina/gaia';
+This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
-// ask maxinyue to get latest json
-import spriteInfo from "@/assets/sprite_mix.json";
+## Available Scripts
 
-const paint: Paint = Gaia.init('#main-canvas') as Paint;
+In the project directory, you can run:
 
-// load sprite data
-paint.loadImage(spriteInfo).then(() => {
+### `npm start`
 
-    Gaia.init({
-      workers: 8,
-      sprite: spriteInfo
-    }).then((gaia: Gaia) => {
-      const paint = gaia.createPaint("#main-canvas");
+Runs the app in the development mode.\
+Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
 
-      // blank callback
-      paint.onBlank("click",()=>{});
-      paint.onBlank("rclick",()=>{});
-      paint.onBlank("dbclick",()=>{});
+The page will reload if you make edits.\
+You will also see any lint errors in the console.
 
+### `npm test`
 
-      // draw geometry
-      paint.drawRect(property:RectProperty);
-      paint.drawText(property:TextProperty);
-      paint.drawImage(property:ImageProperty);
-      paint.drawPath(property:PathProperty);
-      paint.drawSvg(property:SvgProperty);
+Launches the test runner in the interactive watch mode.\
+See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
 
-      // zoom
-      paint.zoom(scale);
+### `npm run build`
 
-      // resize
-      paint.resize();
+Builds the app for production to the `build` folder.\
+It correctly bundles React in production mode and optimizes the build for the best performance.
 
-      // use flush to complete
-      paint.flush().then(() => {
-        // do sth
-      });
+The build is minified and the filenames include the hashes.\
+Your app is ready to be deployed!
 
+See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
 
-      // highlight geometry
+### `npm run eject`
 
+**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
 
-      // example
+If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
 
-      // path
-      paint.highlight([`${fromX}-${fromY}-${toX}-${toY}`], {
-          strokeStyle: "#5cdbd3",
-          lineDash: [4, 4],
-      })
+Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
 
-      // image
-      paint.highlight([handle_name], {
-          state: "hover"
-      })
+You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
 
+## Learn More
 
-      // to recover highlight just set null
-      paint.highlight([handle_name], null)
+You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
 
-
-
-
-      // full example
-      const checkList: string[] = [];
-
-      for (const { x, y, name, width, height, type, handle_name } of schematicInfo.instanceList) {
-
-        if (type === 'common') {
-          continue;
-        }
-
-        paint.drawImage({
-          id: handle_name,
-          imageId: type,
-          x,
-          y,
-          hover: () => {
-            if (!checkList.includes(handle_name)) {
-              paint.highlight([handle_name], {
-                state: "hover"
-              })
-            }
-          },
-          hoverOut: () => {
-            if (!checkList.includes(handle_name)) {
-              paint.highlight([handle_name], null)
-            }
-          },
-          click: () => {
-            checkList.push(handle_name);
-            paint.highlight([handle_name], {
-              state: "check"
-            })
-          }
-        });
-
-        paint.drawSvg({
-            id: handle_name,
-            x,
-            y,
-            fillStyle: '#FF9C6E',
-            svgId: type,
-            hover: () => {
-              if (!checkList.current.includes(handle_name)) {
-                paint.setProperty([handle_name], {
-                  fillStyle: '#5CDBD3',
-                  state: 'hover',
-                });
-              }
-            },
-            hoverOut: () => {
-              if (!checkList.current.includes(handle_name)) {
-                paint.setProperty([handle_name], null);
-              }
-            },
-            click: () => {
-              paint.setProperty(checkList.current, null);
-              checkList.current = [handle_name];
-              paint.setProperty([handle_name], {
-                fillStyle: 'white',
-              });
-              hierarchyModel.updateLeafSelected({ handle_name, name });
-            },
-            rclick: () => {
-              setRightSelectCell(curInstance);
-              setRightSelectNet(null);
-            },
-          });
-
-        paint.drawText({
-          x: x + width / 2 - 1,
-          y: y + height / 2,
-          content: name,
-          fontSize: 3.8,
-          fillStyle: "#fff"
-        })
-      }
-
-      for (const { fromX, fromY, toX, toY } of schematicInfo.lines) {
-        paint.drawPath({
-          id: `${fromX}-${fromY}-${toX}-${toY}`,
-          fromX,
-          fromY,
-          toX,
-          toY,
-          strokeStyle: "#D9F7BE",
-          lineCap: LineCapType.square,
-          lineWidth: 8,
-          keepWidth: 1,
-          hover: () => {
-            if (!checkList.includes(`${fromX}-${fromY}-${toX}-${toY}`)) {
-              paint.highlight([`${fromX}-${fromY}-${toX}-${toY}`], {
-                strokeStyle: "#5cdbd3",
-                lineDash: [4, 4],
-              })
-            }
-          },
-          hoverOut: () => {
-            if (!checkList.includes(`${fromX}-${fromY}-${toX}-${toY}`)) {
-              paint.highlight([`${fromX}-${fromY}-${toX}-${toY}`], null)
-            }
-          },
-          click: () => {
-            checkList.push(`${fromX}-${fromY}-${toX}-${toY}`);
-            paint.highlight([`${fromX}-${fromY}-${toX}-${toY}`], {
-              strokeStyle: "white"
-            })
-          },
-          rclick: () => {
-          },
-          dbclick: () => {
-          }
-        })
-      }
-
-      paint.flush();
-
-
-
-      setTimeout(()=>{
-        paint.clear();
-
-        // 绘制你的新图形
-        ...
-
-        paint.flush(false); // 设置为false保留画布缩放位移信息
-      },2000)
-
-
-
-
-    });
-
-
-```
-
-## bugs left
-
-1. tool bar function extensions
-2. line highlight bold not right lineDash
-3. highlight shadow left
-4. destroy callback
+To learn React, check out the [React documentation](https://reactjs.org/).
