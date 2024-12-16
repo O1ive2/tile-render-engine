@@ -12,7 +12,7 @@
   ],
   "scripts": {
     "start": "react-scripts start",
-    "build": "tsc --build",
+    "build": "raina build",
     "test": "echo 'no test'",
     "deploy": "raina deploy"
   },
