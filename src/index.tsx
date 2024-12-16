@@ -5,7 +5,6 @@ import React from "react";
 const TileMap: React.FC<TileMapProps> = ({
   tileData,
   onTileClick,
-  onDragMove,
   handlewheel,
   width = 200,
   height = 200,
