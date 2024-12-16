@@ -3,14 +3,15 @@ export interface TileMapProps {
   onTileClick?: (clickProps: ClickProps) => void;
   handlewheel?: (newViewport: number) => void;
   onDragMove?: (from: Location, to: Location) => void;
+  tileWidth: number;
+  tileHeight: number;
   width?: number;
   height?: number;
 }
 
 export interface TileDataProps {
-  x: number;
-  y: number;
-  src: string;
+  base64: string;
+  index: number;
 }
 
 export interface Location {
