@@ -1,5 +1,5 @@
 {
-  "include": ["src/**/*"],
+  "include": ["src/**/*.ts"],
   "exclude": ["node_modules"],
   "compilerOptions": {
     "target": "ESNext",
@@ -8,7 +8,7 @@
     "declaration": true,
     "sourceMap": true,
     "outDir": "./dist",
-    "declarationDir": "./types",
+    "declarationDir": "./dist",
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "strict": true,
