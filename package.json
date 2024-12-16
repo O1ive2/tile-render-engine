@@ -4,15 +4,15 @@
   "description": "",
   "license": "ISC",
   "author": "Haoyi Wan",
-  "main": "dist/App.js",
-  "types": "types/App.d.ts",
+  "main": "dist/index.js",
+  "types": "types/index.d.ts",
   "files": [
     "dist",
     "types"
   ],
   "scripts": {
     "start": "react-scripts start",
-    "build": "raina build",
+    "build": "tsc --build",
     "test": "echo 'no test'",
     "deploy": "raina deploy"
   },
