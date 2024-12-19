@@ -166,6 +166,4 @@ const TileMap: React.FC<TileMapProps> = ({
   );
 };
 
-init();
-
 export default TileMap;
