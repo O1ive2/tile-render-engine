@@ -15,6 +15,8 @@ const TileMap: React.FC<TileMapProps> = ({
   const canvasRef = useRef<null | HTMLCanvasElement>(null);
   const [viewport, setViewport] = useState({ x: 0, y: 0 });
   const [zoomLevel, setZoomLevel] = useState(1);
+  const requestRef = useRef<number>(0); // 用于存储请求的 ID
+  const lastPosition = useRef<{ x: number; y: number }>({ x: 0, y: 0 }); // 存储上一次的鼠标位置
 
   const imgCache = useMemo(() => {
     const sideLen = Math.floor(Math.sqrt(tileData.length));
@@ -65,10 +67,26 @@ const TileMap: React.FC<TileMapProps> = ({
     const startX = event.clientX;
     const startY = event.clientY;
 
+    // 初始化 lastPosition 存储的值
+    lastPosition.current = { x: startX, y: startY };
+
+    // 使用 requestAnimationFrame 延迟更新视口
     const onMouseMove = (moveEvent: MouseEvent) => {
-      const dx = moveEvent.clientX - startX;
-      const dy = moveEvent.clientY - startY;
-      setViewport({ x: viewport.x + dx, y: viewport.y + dy });
+      const dx = moveEvent.clientX - lastPosition.current.x;
+      const dy = moveEvent.clientY - lastPosition.current.y;
+
+      if (requestRef.current) {
+        cancelAnimationFrame(requestRef.current);
+      }
+
+      requestRef.current = requestAnimationFrame(() => {
+        setViewport((prev) => ({
+          x: prev.x + dx,
+          y: prev.y + dy,
+        }));
+
+        lastPosition.current = { x: moveEvent.clientX, y: moveEvent.clientY };
+      });
     };
 
     const onMouseUp = () => {
@@ -132,7 +150,7 @@ const TileMap: React.FC<TileMapProps> = ({
     const context = canvas?.getContext("2d");
 
     if (context) {
-      requestAnimationFrame(() => drawTiles(context));
+      drawTiles(context);
     }
   }, [tileData, zoomLevel, viewport]);
 
