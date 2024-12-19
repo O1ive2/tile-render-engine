@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { TileMapProps } from "./interface";
 import React from "react";
-import { init } from "./test";
 
 const TileMap: React.FC<TileMapProps> = ({
   tileData,
