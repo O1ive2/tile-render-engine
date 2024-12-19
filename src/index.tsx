@@ -1,30 +1,40 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { TileMapProps } from "./interface";
 import React from "react";
+import { init } from "./test";
 
 const TileMap: React.FC<TileMapProps> = ({
   tileData,
   onTileClick,
   handlewheel,
+  tileWidth,
+  tileHeight,
   width = 200,
   height = 200,
 }) => {
   const canvasRef = useRef<null | HTMLCanvasElement>(null);
   const [viewport, setViewport] = useState({ x: 0, y: 0 });
   const [zoomLevel, setZoomLevel] = useState(1);
+  const requestRef = useRef<number>(0); // 用于存储请求的 ID
+  const lastPosition = useRef<{ x: number; y: number }>({ x: 0, y: 0 }); // 存储上一次的鼠标位置
 
   const imgCache = useMemo(() => {
+    const sideLen = Math.floor(Math.sqrt(tileData.length));
+
     return tileData.map((item) => {
-      const { x, y, src } = item;
+      const { blockBase64Str, index } = item;
       const img = new Image();
-      img.src = src;
-      return { img, x, y, src };
+      img.src = `data:img/png;base64,${blockBase64Str}`;
+      const x = tileWidth * (index % sideLen);
+      const y = tileHeight * Math.floor(index / sideLen);
+
+      return { img, x, y };
     });
   }, [tileData]);
 
-  // 加载瓦片并渲染
   const drawTiles = (context: CanvasRenderingContext2D) => {
-    context.clearRect(0, 0, context.canvas.width, context.canvas.height); // 清空画布
+    console.log("draw");
+    context.clearRect(0, 0, context.canvas.width, context.canvas.height);
 
     imgCache.forEach((item) => {
       const { x, y, img } = item;
@@ -57,10 +67,26 @@ const TileMap: React.FC<TileMapProps> = ({
     const startX = event.clientX;
     const startY = event.clientY;
 
+    // 初始化 lastPosition 存储的值
+    lastPosition.current = { x: startX, y: startY };
+
+    // 使用 requestAnimationFrame 延迟更新视口
     const onMouseMove = (moveEvent: MouseEvent) => {
-      const dx = moveEvent.clientX - startX;
-      const dy = moveEvent.clientY - startY;
-      setViewport({ x: viewport.x + dx, y: viewport.y + dy });
+      const dx = moveEvent.clientX - lastPosition.current.x;
+      const dy = moveEvent.clientY - lastPosition.current.y;
+
+      if (requestRef.current) {
+        cancelAnimationFrame(requestRef.current);
+      }
+
+      requestRef.current = requestAnimationFrame(() => {
+        setViewport((prev) => ({
+          x: prev.x + dx,
+          y: prev.y + dy,
+        }));
+
+        lastPosition.current = { x: moveEvent.clientX, y: moveEvent.clientY };
+      });
     };
 
     const onMouseUp = () => {
@@ -85,7 +111,7 @@ const TileMap: React.FC<TileMapProps> = ({
     const mouseY = event.clientY - rect.top;
 
     // 根据鼠标位置计算新的 viewport，使得缩放在鼠标指针位置发生
-    const newZoomLevel = Math.max(0.1, Math.min(5, zoomLevel * zoomFactor));
+    const newZoomLevel = Math.max(0.1, Math.min(100, zoomLevel * zoomFactor));
 
     // 计算缩放后的偏移量
     const zoomRatio = newZoomLevel / zoomLevel;
@@ -124,7 +150,6 @@ const TileMap: React.FC<TileMapProps> = ({
     const context = canvas?.getContext("2d");
 
     if (context) {
-      console.log("draw");
       drawTiles(context);
     }
   }, [tileData, zoomLevel, viewport]);
@@ -140,5 +165,7 @@ const TileMap: React.FC<TileMapProps> = ({
     />
   );
 };
+
+init();
 
 export default TileMap;
