@@ -16,13 +16,17 @@ const TileMap: React.FC<TileMapProps> = ({
   const canvasRef = useRef<null | HTMLCanvasElement>(null);
   const [viewport, setViewport] = useState({ x: 0, y: 0 });
   const [zoomLevel, setZoomLevel] = useState(1);
-  // 用于外界控制
-  const [absoluteLevel, setAbsoluteLevel] = useState(1);
+  const [oldZoomLevel, setOldZoomLevel] = useState(1);
   const requestRef = useRef<number>(0); // 用于存储请求的 ID
   const lastPosition = useRef<{ x: number; y: number }>({ x: 0, y: 0 }); // 存储上一次的鼠标位置
 
   useEffect(() => {
-    setZoomLevel(1);
+    // 修复偏移值
+    if (zoomLevel > 4) {
+      setZoomLevel((i) => i / 4);
+    } else {
+      setZoomLevel((i) => i / 0.25);
+    }
   }, [tileData]);
 
   const imgCache = useMemo(() => {
@@ -40,7 +44,6 @@ const TileMap: React.FC<TileMapProps> = ({
   }, [tileData]);
 
   const drawTiles = (context: CanvasRenderingContext2D) => {
-    console.log("draw");
     context.clearRect(0, 0, context.canvas.width, context.canvas.height);
 
     imgCache.forEach((item) => {
@@ -51,8 +54,8 @@ const TileMap: React.FC<TileMapProps> = ({
           img,
           x * zoomLevel + viewport.x,
           y * zoomLevel + viewport.y,
-          img.width * zoomLevel,
-          img.height * zoomLevel
+          tileWidth * zoomLevel,
+          tileHeight * zoomLevel
         );
       } else {
         img.onload = () => {
@@ -60,8 +63,8 @@ const TileMap: React.FC<TileMapProps> = ({
             img,
             x * zoomLevel + viewport.x,
             y * zoomLevel + viewport.y,
-            img.width * zoomLevel,
-            img.height * zoomLevel
+            tileWidth * zoomLevel,
+            tileHeight * zoomLevel
           );
         };
       }
@@ -119,10 +122,6 @@ const TileMap: React.FC<TileMapProps> = ({
 
     // 根据鼠标位置计算新的 viewport，使得缩放在鼠标指针位置发生
     const newZoomLevel = Math.max(0.1, Math.min(100, zoomLevel * zoomFactor));
-    const newAbsoluteLevel = Math.max(
-      0.1,
-      Math.min(100, absoluteLevel * zoomFactor)
-    );
 
     // 计算缩放后的偏移量
     const zoomRatio = newZoomLevel / zoomLevel;
@@ -131,15 +130,15 @@ const TileMap: React.FC<TileMapProps> = ({
     const newViewportY = viewport.y - (mouseY - viewport.y) * (zoomRatio - 1);
 
     // 更新缩放和视口位置
+    setOldZoomLevel(zoomLevel);
     setZoomLevel(newZoomLevel);
-    setAbsoluteLevel(newAbsoluteLevel);
+
     setViewport({ x: newViewportX, y: newViewportY });
 
     handlewheel?.({
       zoomLevel: newZoomLevel,
       viewPort: { x: newViewportX, y: newViewportY },
       type: "Wheel",
-      absoluteLevel: newAbsoluteLevel,
     });
   };
 

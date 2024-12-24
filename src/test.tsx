@@ -5,7 +5,6 @@ import { TileDataProps, TileMapEventInfo } from "./interface";
 
 const Home = () => {
   const [data, setData] = useState<TileDataProps[]>();
-  const [factor, setFactor] = useState<number>(1);
   const [level, setLevel] = useState<number>(0);
   useEffect(() => {
     fetchData("/data_4.json");
@@ -22,12 +21,10 @@ const Home = () => {
   const onTileClick = (coords: { x: number; y: number }) =>
     console.log("click", coords);
   const handlewheel = (event: TileMapEventInfo) => {
-    const { zoomLevel, viewPort, absoluteLevel } = event;
-    setFactor((i) => i * (zoomLevel as number));
+    const { zoomLevel, viewPort } = event;
     console.log("zoomLevel", zoomLevel);
     console.log("viewport", viewPort);
     if (zoomLevel && zoomLevel < 0.25) {
-      // 如果缩放到level 0，加载更粗糙的瓦片
       if (level === 1) {
         fetchData("/data_4.json").then(() => {
           setLevel(0);
@@ -59,15 +56,12 @@ const Home = () => {
           handlewheel={handlewheel}
           tileWidth={131}
           tileHeight={72}
-          width={1000}
-          height={1000}
+          width={5000}
+          height={5000}
         />
       ) : (
         <></>
       )}
-      <button onClick={() => fetchData("/data_4.json")}>2x2</button>
-
-      <button onClick={() => fetchData("/data_64.json")}>8x8</button>
     </>
   );
 };
