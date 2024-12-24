@@ -1,7 +1,7 @@
 export interface TileMapProps {
   tileData: TileDataProps[];
   onTileClick?: (clickProps: ClickProps) => void;
-  handlewheel?: (newViewport: number) => void;
+  handlewheel?: (event: TileMapEventInfo) => void;
   onDragStart?: (startX: number, startY: number) => void;
   onDragMove?: (moveX: number, moveY: number) => void;
   onDragEnd?: (endX: number, endY: number) => void;
@@ -28,6 +28,7 @@ export interface TileMapEventInfo {
     y?: number;
   };
   zoomLevel?: number;
+  absoluteLevel?: number;
 }
 
 export interface ClickProps {
