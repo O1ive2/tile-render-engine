@@ -1,21 +1,36 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useLayoutEffect } from "react";
 import { TileMapProps } from "./interface";
 import React from "react";
+import { init } from "./test";
+import "./index.css";
 
-const TileMap: React.FC<TileMapProps> = ({
+const Gaia: React.FC<TileMapProps> = ({
   tileData,
   onTileClick,
   handlewheel,
-  tileWidth,
-  tileHeight,
-  width = 200,
-  height = 200,
+  tilesX,
+  tileSize,
+  tileSwitchLevel = 1,
+  canvasSize = {
+    width: 200,
+    height: 200,
+  },
 }) => {
+  const { width: tileWidth, height: tileHeight } = tileSize;
   const canvasRef = useRef<null | HTMLCanvasElement>(null);
   const [viewport, setViewport] = useState({ x: 0, y: 0 });
   const [zoomLevel, setZoomLevel] = useState(1);
   const requestRef = useRef<number>(0); // 用于存储请求的 ID
   const lastPosition = useRef<{ x: number; y: number }>({ x: 0, y: 0 }); // 存储上一次的鼠标位置
+
+  useLayoutEffect(() => {
+    // 修复偏移值
+    if (zoomLevel > tileSwitchLevel) {
+      setZoomLevel((i) => i / tileSwitchLevel);
+    } else if (zoomLevel < 1 / tileSwitchLevel) {
+      setZoomLevel((i) => i / (1 / tileSwitchLevel));
+    }
+  }, [tileData]);
 
   const imgCache = useMemo(() => {
     const sideLen = Math.floor(Math.sqrt(tileData.length));
@@ -24,15 +39,14 @@ const TileMap: React.FC<TileMapProps> = ({
       const { blockBase64Str, index } = item;
       const img = new Image();
       img.src = `data:img/png;base64,${blockBase64Str}`;
-      const x = tileWidth * (index % sideLen);
-      const y = tileHeight * Math.floor(index / sideLen);
+      const x = tileWidth * (index % tilesX);
+      const y = tileHeight * Math.floor(index / tilesX);
 
       return { img, x, y };
     });
   }, [tileData]);
 
   const drawTiles = (context: CanvasRenderingContext2D) => {
-    console.log("draw");
     context.clearRect(0, 0, context.canvas.width, context.canvas.height);
 
     imgCache.forEach((item) => {
@@ -43,8 +57,8 @@ const TileMap: React.FC<TileMapProps> = ({
           img,
           x * zoomLevel + viewport.x,
           y * zoomLevel + viewport.y,
-          img.width * zoomLevel,
-          img.height * zoomLevel
+          tileWidth * zoomLevel,
+          tileHeight * zoomLevel
         );
       } else {
         img.onload = () => {
@@ -52,8 +66,8 @@ const TileMap: React.FC<TileMapProps> = ({
             img,
             x * zoomLevel + viewport.x,
             y * zoomLevel + viewport.y,
-            img.width * zoomLevel,
-            img.height * zoomLevel
+            tileWidth * zoomLevel,
+            tileHeight * zoomLevel
           );
         };
       }
@@ -120,9 +134,14 @@ const TileMap: React.FC<TileMapProps> = ({
 
     // 更新缩放和视口位置
     setZoomLevel(newZoomLevel);
+
     setViewport({ x: newViewportX, y: newViewportY });
 
-    handlewheel?.(newZoomLevel);
+    handlewheel?.({
+      zoomLevel: newZoomLevel,
+      viewPort: { x: newViewportX, y: newViewportY },
+      type: "Wheel",
+    });
   };
 
   useEffect(() => {
@@ -141,7 +160,13 @@ const TileMap: React.FC<TileMapProps> = ({
     const rect = canvasRef.current?.getBoundingClientRect() as DOMRect;
     const clickX = event.clientX - rect.left;
     const clickY = event.clientY - rect.top;
-    onTileClick?.({ x: clickX, y: clickY });
+    onTileClick?.({
+      type: "Click",
+      x: clickX,
+      y: clickY,
+      viewPort: viewport,
+      zoomLevel: zoomLevel,
+    });
   };
 
   useEffect(() => {
@@ -155,9 +180,10 @@ const TileMap: React.FC<TileMapProps> = ({
 
   return (
     <canvas
+      className="gaia-canvas"
       ref={canvasRef}
-      width={width}
-      height={height}
+      width={canvasSize.width}
+      height={canvasSize.height}
       onWheel={handleWheel}
       onMouseDown={handleMouseDown}
       onClick={handleClick}
@@ -165,4 +191,4 @@ const TileMap: React.FC<TileMapProps> = ({
   );
 };
 
-export default TileMap;
+export default Gaia;
