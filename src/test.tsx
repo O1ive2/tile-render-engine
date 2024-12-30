@@ -6,6 +6,7 @@ import { TileDataProps, TileMapEventInfo } from "./interface";
 const Home = () => {
   const [data, setData] = useState<TileDataProps[]>();
   const [level, setLevel] = useState<number>(0);
+  const [tilesLen, setTilesLen] = useState(0);
   useEffect(() => {
     fetchData("/data_4.json");
   }, []);
@@ -13,13 +14,16 @@ const Home = () => {
     try {
       const res = await (await fetch(path)).json();
       setData(res.blocks);
+      setTilesLen(Math.floor(Math.sqrt(res.blocks.length)));
     } catch (e) {
       console.log("error");
     }
   };
 
-  const onTileClick = (coords: { x: number; y: number }) =>
-    console.log("click", coords);
+  const onTileClick = (event: TileMapEventInfo) => {
+    console.log("click", event);
+  };
+
   const handlewheel = (event: TileMapEventInfo) => {
     const { zoomLevel } = event;
     console.log("wheelzoomlevel", zoomLevel);
@@ -48,22 +52,21 @@ const Home = () => {
   };
 
   return (
-    <>
+    <div className="home">
       {data ? (
         <Gaia
           tileData={data}
+          tilesX={tilesLen}
           onTileClick={onTileClick}
           handlewheel={handlewheel}
-          tileWidth={131}
-          tileSwitchThreshold={4}
-          tileHeight={72}
-          width={5000}
-          height={5000}
+          tileSize={{ width: 131, height: 72 }}
+          tileSwitchLevel={4}
+          canvasSize={{ width: 5000, height: 5000 }}
         />
       ) : (
         <></>
       )}
-    </>
+    </div>
   );
 };
 

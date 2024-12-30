@@ -8,12 +8,15 @@ const Gaia: React.FC<TileMapProps> = ({
   tileData,
   onTileClick,
   handlewheel,
-  tileWidth,
-  tileHeight,
-  tileSwitchThreshold = 1,
-  width = 200,
-  height = 200,
+  tilesX,
+  tileSize,
+  tileSwitchLevel = 1,
+  canvasSize = {
+    width: 200,
+    height: 200,
+  },
 }) => {
+  const { width: tileWidth, height: tileHeight } = tileSize;
   const canvasRef = useRef<null | HTMLCanvasElement>(null);
   const [viewport, setViewport] = useState({ x: 0, y: 0 });
   const [zoomLevel, setZoomLevel] = useState(1);
@@ -22,10 +25,10 @@ const Gaia: React.FC<TileMapProps> = ({
 
   useLayoutEffect(() => {
     // 修复偏移值
-    if (zoomLevel > tileSwitchThreshold) {
-      setZoomLevel((i) => i / tileSwitchThreshold);
-    } else if (zoomLevel < 1 / tileSwitchThreshold) {
-      setZoomLevel((i) => i / (1 / tileSwitchThreshold));
+    if (zoomLevel > tileSwitchLevel) {
+      setZoomLevel((i) => i / tileSwitchLevel);
+    } else if (zoomLevel < 1 / tileSwitchLevel) {
+      setZoomLevel((i) => i / (1 / tileSwitchLevel));
     }
   }, [tileData]);
 
@@ -36,8 +39,8 @@ const Gaia: React.FC<TileMapProps> = ({
       const { blockBase64Str, index } = item;
       const img = new Image();
       img.src = `data:img/png;base64,${blockBase64Str}`;
-      const x = tileWidth * (index % sideLen);
-      const y = tileHeight * Math.floor(index / sideLen);
+      const x = tileWidth * (index % tilesX);
+      const y = tileHeight * Math.floor(index / tilesX);
 
       return { img, x, y };
     });
@@ -157,7 +160,13 @@ const Gaia: React.FC<TileMapProps> = ({
     const rect = canvasRef.current?.getBoundingClientRect() as DOMRect;
     const clickX = event.clientX - rect.left;
     const clickY = event.clientY - rect.top;
-    onTileClick?.({ x: viewport.x, y: viewport.y });
+    onTileClick?.({
+      type: "Click",
+      x: clickX,
+      y: clickY,
+      viewPort: viewport,
+      zoomLevel: zoomLevel,
+    });
   };
 
   useEffect(() => {
@@ -173,8 +182,8 @@ const Gaia: React.FC<TileMapProps> = ({
     <canvas
       className="gaia-canvas"
       ref={canvasRef}
-      width={width}
-      height={height}
+      width={canvasSize.width}
+      height={canvasSize.height}
       onWheel={handleWheel}
       onMouseDown={handleMouseDown}
       onClick={handleClick}

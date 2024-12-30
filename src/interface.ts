@@ -1,14 +1,24 @@
 export interface TileMapProps {
   tileData: TileDataProps[];
-  onTileClick?: (clickProps: ClickProps) => void;
+  // Number of tile in X
+  tilesX: number;
+  // Click event callback
+  onTileClick?: (event: TileMapEventInfo) => void;
+  // Wheel event callback
   handlewheel?: (event: TileMapEventInfo) => void;
-  onDragMove?: (moveX: number, moveY: number) => void;
-  // 瓦片图切换的触发阈值
-  tileSwitchThreshold?: number;
-  tileWidth: number;
-  tileHeight: number;
-  width?: number;
-  height?: number;
+  onDragMove?: (event: TileMapEventInfo) => void;
+  // Threshold level of tile switching,default 1
+  tileSwitchLevel?: number;
+  // Single tile size
+  tileSize: {
+    height: number;
+    width: number;
+  };
+  // Canvas size
+  canvasSize: {
+    width?: number;
+    height?: number;
+  };
 }
 
 export interface TileDataProps {
@@ -28,10 +38,6 @@ export interface TileMapEventInfo {
     y?: number;
   };
   zoomLevel?: number;
-  absoluteLevel?: number;
-}
-
-export interface ClickProps {
-  x: number;
-  y: number;
+  x?: number;
+  y?: number;
 }
