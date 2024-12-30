@@ -1,31 +1,31 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useLayoutEffect } from "react";
 import { TileMapProps } from "./interface";
 import React from "react";
 import { init } from "./test";
 import "./index.css";
 
-const TileMap: React.FC<TileMapProps> = ({
+const Gaia: React.FC<TileMapProps> = ({
   tileData,
   onTileClick,
   handlewheel,
   tileWidth,
   tileHeight,
+  tileSwitchThreshold = 1,
   width = 200,
   height = 200,
 }) => {
   const canvasRef = useRef<null | HTMLCanvasElement>(null);
   const [viewport, setViewport] = useState({ x: 0, y: 0 });
   const [zoomLevel, setZoomLevel] = useState(1);
-  const [oldZoomLevel, setOldZoomLevel] = useState(1);
   const requestRef = useRef<number>(0); // 用于存储请求的 ID
   const lastPosition = useRef<{ x: number; y: number }>({ x: 0, y: 0 }); // 存储上一次的鼠标位置
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     // 修复偏移值
-    if (zoomLevel > 4) {
-      setZoomLevel((i) => i / 4);
-    } else {
-      setZoomLevel((i) => i / 0.25);
+    if (zoomLevel > tileSwitchThreshold) {
+      setZoomLevel((i) => i / tileSwitchThreshold);
+    } else if (zoomLevel < 1 / tileSwitchThreshold) {
+      setZoomLevel((i) => i / (1 / tileSwitchThreshold));
     }
   }, [tileData]);
 
@@ -130,7 +130,6 @@ const TileMap: React.FC<TileMapProps> = ({
     const newViewportY = viewport.y - (mouseY - viewport.y) * (zoomRatio - 1);
 
     // 更新缩放和视口位置
-    setOldZoomLevel(zoomLevel);
     setZoomLevel(newZoomLevel);
 
     setViewport({ x: newViewportX, y: newViewportY });
@@ -183,6 +182,4 @@ const TileMap: React.FC<TileMapProps> = ({
   );
 };
 
-init();
-
-export default TileMap;
+export default Gaia;

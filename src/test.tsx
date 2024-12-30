@@ -1,5 +1,5 @@
 import ReactDOM from "react-dom/client";
-import TileMap from "./index";
+import Gaia from "./index";
 import React, { useEffect, useState } from "react";
 import { TileDataProps, TileMapEventInfo } from "./interface";
 
@@ -21,9 +21,9 @@ const Home = () => {
   const onTileClick = (coords: { x: number; y: number }) =>
     console.log("click", coords);
   const handlewheel = (event: TileMapEventInfo) => {
-    const { zoomLevel, viewPort } = event;
-    console.log("zoomLevel", zoomLevel);
-    console.log("viewport", viewPort);
+    const { zoomLevel } = event;
+    console.log("wheelzoomlevel", zoomLevel);
+
     if (zoomLevel && zoomLevel < 0.25) {
       if (level === 1) {
         fetchData("/data_4.json").then(() => {
@@ -50,11 +50,12 @@ const Home = () => {
   return (
     <>
       {data ? (
-        <TileMap
+        <Gaia
           tileData={data}
           onTileClick={onTileClick}
           handlewheel={handlewheel}
           tileWidth={131}
+          tileSwitchThreshold={4}
           tileHeight={72}
           width={5000}
           height={5000}

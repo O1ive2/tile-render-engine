@@ -2,9 +2,9 @@ export interface TileMapProps {
   tileData: TileDataProps[];
   onTileClick?: (clickProps: ClickProps) => void;
   handlewheel?: (event: TileMapEventInfo) => void;
-  onDragStart?: (startX: number, startY: number) => void;
   onDragMove?: (moveX: number, moveY: number) => void;
-  onDragEnd?: (endX: number, endY: number) => void;
+  // 瓦片图切换的触发阈值
+  tileSwitchThreshold?: number;
   tileWidth: number;
   tileHeight: number;
   width?: number;
