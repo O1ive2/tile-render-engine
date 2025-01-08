@@ -26,7 +26,7 @@ const Home = () => {
 
   const handlewheel = (event: TileMapEventInfo) => {
     const { zoomLevel } = event;
-    console.log("wheelzoomlevel", zoomLevel);
+    console.log("wheelzoomlevel", event);
 
     if (zoomLevel && zoomLevel < 0.25) {
       if (level === 1) {
@@ -57,11 +57,10 @@ const Home = () => {
         <Gaia
           tileData={data}
           tilesX={tilesLen}
-          onTileClick={onTileClick}
           handlewheel={handlewheel}
           tileSize={{ width: 131, height: 72 }}
           tileSwitchLevel={4}
-          canvasSize={{ width: 5000, height: 5000 }}
+          canvasSize={{ width: 600, height: 600 }}
         />
       ) : (
         <></>
