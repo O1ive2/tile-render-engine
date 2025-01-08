@@ -24,6 +24,10 @@ const Home = () => {
     console.log("click", event);
   };
 
+  const visbleTilesWatcher = (list: number[]) => {
+    console.log("vis", list);
+  };
+
   const handlewheel = (event: TileMapEventInfo) => {
     const { zoomLevel } = event;
     console.log("wheelzoomlevel", event);
@@ -56,11 +60,14 @@ const Home = () => {
       {data ? (
         <Gaia
           tileData={data}
+          dynamicLoad={true}
           tilesX={tilesLen}
+          tilesY={tilesLen}
           handlewheel={handlewheel}
           tileSize={{ width: 131, height: 72 }}
           tileSwitchLevel={4}
           canvasSize={{ width: 600, height: 600 }}
+          visbleTilesWatcher={visbleTilesWatcher}
         />
       ) : (
         <></>

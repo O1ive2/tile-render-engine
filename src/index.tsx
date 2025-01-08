@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useLayoutEffect } from "react";
-import { TileMapProps } from "./interface";
+import { TileDataProps, TileMapProps } from "./interface";
 import React from "react";
 import { init } from "./test";
 import "./index.css";
@@ -8,36 +8,45 @@ const Gaia: React.FC<TileMapProps> = ({
   tileData,
   onTileClick,
   handlewheel,
-  tilesX,
   tileSize,
+  tilesX,
+  tilesY,
   tileSwitchLevel = 1,
   canvasSize = {
     width: 200,
     height: 200,
   },
+  dynamicLoad = false,
+  visbleTilesWatcher,
 }) => {
   const { width: tileWidth, height: tileHeight } = tileSize;
   const canvasRef = useRef<null | HTMLCanvasElement>(null);
+  const [imgCache, setImgCache] = useState<
+    {
+      img: HTMLImageElement;
+      x: number;
+      y: number;
+    }[]
+  >([]);
   const [viewport, setViewport] = useState({ x: 0, y: 0 });
   const [zoomLevel, setZoomLevel] = useState(1);
   const requestRef = useRef<number>(0); // 用于存储请求的 ID
   const lastPosition = useRef<{ x: number; y: number }>({ x: 0, y: 0 }); // 存储上一次的鼠标位置
 
-  const tilesY = useMemo(() => {
-    return Math.floor(tileData.length / tilesX);
-  }, [tileData]);
-
   useLayoutEffect(() => {
-    // 修复偏移值
+    // 在放大到切换瓦片图的临界层级时，修复瓦片图扩张带来的偏移值
     if (zoomLevel > tileSwitchLevel) {
+      // 在图层levle切换的时候，清空缓存
+      if (dynamicLoad) setImgCache([]);
       setZoomLevel((i) => i / tileSwitchLevel);
     } else if (zoomLevel < 1 / tileSwitchLevel) {
+      // 在图层levle切换的时候，清空缓存
+      if (dynamicLoad) setImgCache([]);
+      // 在缩小到切换瓦片图的临界层级时，修复瓦片图缩减带来的偏移值
       setZoomLevel((i) => i / (1 / tileSwitchLevel));
     }
-  }, [tileData]);
 
-  const imgCache = useMemo(() => {
-    return tileData.map((item) => {
+    const updateData = tileData.map((item) => {
       const { blockBase64Str, index } = item;
       const img = new Image();
       img.src = `data:img/png;base64,${blockBase64Str}`;
@@ -46,12 +55,22 @@ const Gaia: React.FC<TileMapProps> = ({
 
       return { img, x, y };
     });
+    // 动态加载，则增量更新imgCache缓存
+    if (dynamicLoad) {
+      setImgCache((cache) => {
+        return [...cache, ...updateData];
+      });
+    } else {
+      // 非动态加载，直接替换imgCache内容
+      setImgCache(updateData);
+    }
   }, [tileData]);
 
+  // 依据顺序绘制瓦片图
   const drawTiles = (context: CanvasRenderingContext2D) => {
     context.clearRect(0, 0, context.canvas.width, context.canvas.height);
 
-    imgCache.forEach((item) => {
+    imgCache?.forEach((item) => {
       const { x, y, img } = item;
 
       if (img.complete) {
@@ -113,6 +132,7 @@ const Gaia: React.FC<TileMapProps> = ({
     document.addEventListener("mouseup", onMouseUp);
   };
 
+  // 计算可视区域的瓦片图index
   const calculateImageVisibleArea = () => {
     const canvasWidth = canvasSize.width as number;
     const canvasHeight = canvasSize.height as number;
@@ -129,7 +149,7 @@ const Gaia: React.FC<TileMapProps> = ({
     const endX = viewport.x + scaledMapWidth;
     const endY = viewport.y + scaledMapHeight;
 
-    const visIndex = new Array();
+    const visIndex: number[] = [];
     let x1, y1, x2, y2;
 
     // 判断瓦片图在canvas内部
@@ -226,8 +246,7 @@ const Gaia: React.FC<TileMapProps> = ({
 
     if (context) {
       drawTiles(context);
-
-      console.log("vis", calculateImageVisibleArea());
+      visbleTilesWatcher?.(calculateImageVisibleArea());
     }
   }, [tileData, zoomLevel, viewport]);
 

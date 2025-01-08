@@ -2,6 +2,7 @@ export interface TileMapProps {
   tileData: TileDataProps[];
   // Number of tile in X
   tilesX: number;
+  tilesY: number;
   // Click event callback
   onTileClick?: (event: TileMapEventInfo) => void;
   // Wheel event callback
@@ -19,6 +20,8 @@ export interface TileMapProps {
     width?: number;
     height?: number;
   };
+  visbleTilesWatcher?: (indexList: number[]) => void;
+  dynamicLoad?: boolean;
 }
 
 export interface TileDataProps {
