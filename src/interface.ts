@@ -43,4 +43,5 @@ export interface TileMapEventInfo {
   zoomLevel?: number;
   x?: number;
   y?: number;
+  visibleIndexList?: number[];
 }

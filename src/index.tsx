@@ -8,6 +8,7 @@ const Gaia: React.FC<TileMapProps> = ({
   tileData,
   onTileClick,
   handlewheel,
+  onDragMove,
   tileSize,
   tilesX,
   tilesY,
@@ -121,6 +122,12 @@ const Gaia: React.FC<TileMapProps> = ({
 
         lastPosition.current = { x: moveEvent.clientX, y: moveEvent.clientY };
       });
+      onDragMove?.({
+        zoomLevel: zoomLevel,
+        viewPort: { x: viewport.x, y: viewport.y },
+        type: "DragMove",
+        visibleIndexList: calculateImageVisibleArea(),
+      });
     };
 
     const onMouseUp = () => {
@@ -212,6 +219,7 @@ const Gaia: React.FC<TileMapProps> = ({
       zoomLevel: newZoomLevel,
       viewPort: { x: newViewportX, y: newViewportY },
       type: "Wheel",
+      visibleIndexList: calculateImageVisibleArea(),
     });
   };
 
