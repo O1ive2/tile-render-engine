@@ -34,20 +34,8 @@ const Gaia: React.FC<TileMapProps> = ({
   const requestRef = useRef<number>(0); // 用于存储请求的 ID
   const lastPosition = useRef<{ x: number; y: number }>({ x: 0, y: 0 }); // 存储上一次的鼠标位置
 
-  useLayoutEffect(() => {
-    // 在放大到切换瓦片图的临界层级时，修复瓦片图扩张带来的偏移值
-    if (zoomLevel > tileSwitchLevel) {
-      // 在图层levle切换的时候，清空缓存
-      if (dynamicLoad) setImgCache([]);
-      setZoomLevel((i) => i / tileSwitchLevel);
-    } else if (zoomLevel < 1 / tileSwitchLevel) {
-      // 在图层levle切换的时候，清空缓存
-      if (dynamicLoad) setImgCache([]);
-      // 在缩小到切换瓦片图的临界层级时，修复瓦片图缩减带来的偏移值
-      setZoomLevel((i) => i / (1 / tileSwitchLevel));
-    }
-
-    const updateData = tileData.map((item) => {
+  const updateData = useMemo(() => {
+    return tileData.map((item) => {
       const { blockBase64Str, index } = item;
       const img = new Image();
       img.src = `data:img/png;base64,${blockBase64Str}`;
@@ -56,6 +44,27 @@ const Gaia: React.FC<TileMapProps> = ({
 
       return { img, x, y };
     });
+  }, [tileData]);
+
+  useLayoutEffect(() => {
+    // 在放大到切换瓦片图的临界层级时，修复瓦片图扩张带来的偏移值
+    if (zoomLevel > tileSwitchLevel) {
+      // 在图层levle切换的时候，清空缓存
+      if (dynamicLoad) {
+        setImgCache([]);
+        console.log("clear");
+      }
+      setZoomLevel((i) => i / tileSwitchLevel);
+    } else if (zoomLevel < 1 / tileSwitchLevel) {
+      // 在图层levle切换的时候，清空缓存
+      if (dynamicLoad) {
+        setImgCache([]);
+        console.log("clear");
+      }
+      // 在缩小到切换瓦片图的临界层级时，修复瓦片图缩减带来的偏移值
+      setZoomLevel((i) => i / (1 / tileSwitchLevel));
+    }
+
     // 动态加载，则增量更新imgCache缓存
     if (dynamicLoad) {
       setImgCache((cache) => {

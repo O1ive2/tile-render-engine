@@ -5,7 +5,7 @@ import { TileDataProps, TileMapEventInfo } from "./interface";
 
 const Home = () => {
   const [data, setData] = useState<TileDataProps[]>();
-  const [level, setLevel] = useState<number>(0);
+  const [level, setLevel] = useState<number>(1);
   const [tilesLen, setTilesLen] = useState(0);
   useEffect(() => {
     fetchAllData("/data_4.json");
@@ -21,7 +21,11 @@ const Home = () => {
     }
   };
 
-  const fetchData = async (indexList: number[], level: number, len: number) => {
+  const fetchData = async (
+    indexList: number[],
+    level: number,
+    len?: number
+  ) => {
     try {
       const res = await (
         await fetch(`http://192.168.15.92:3008/getBlocks`, {
@@ -37,22 +41,22 @@ const Home = () => {
       ).json();
       console.log("res", res);
       setData(res.blocks);
-      setTilesLen(len);
+      if (len) setTilesLen(len);
     } catch (e) {
       console.log("error");
     }
   };
 
   const onTileClick = (event: TileMapEventInfo) => {
-    fetchData(event.visibleIndexList as number[], level + 1, 2);
+    fetchData(event.visibleIndexList as number[], level, 2);
   };
 
   const onDragMove = (event: TileMapEventInfo) => {
-    console.log("drag", event);
+    // console.log("drag", event);
   };
 
   const visbleTilesWatcher = (list: number[]) => {
-    console.log("vis", list);
+    // console.log("vis", list);
   };
 
   const handlewheel = (event: TileMapEventInfo) => {
@@ -60,27 +64,29 @@ const Home = () => {
     console.log("wheelzoomlevel", event);
 
     if (zoomLevel && zoomLevel < 0.25) {
-      if (level === 1) {
+      if (level === 2) {
         fetchData(event.visibleIndexList as number[], level - 1, 2).then(() => {
-          setLevel(0);
-        });
-      } else if (level === 2) {
-        fetchData(event.visibleIndexList as number[], level - 1, 8).then(() => {
           setLevel(1);
+        });
+      } else if (level === 3) {
+        fetchData(event.visibleIndexList as number[], level - 1, 8).then(() => {
+          setLevel(2);
         });
       }
     } else if (zoomLevel && zoomLevel >= 4) {
-      if (level === 0) {
+      if (level === 1) {
         fetchData(event.visibleIndexList as number[], level + 1, 8).then(() => {
-          setLevel(1);
+          setLevel(2);
         });
-      } else if (level === 1) {
+      } else if (level === 2) {
         fetchData(event.visibleIndexList as number[], level + 1, 32).then(
           () => {
-            setLevel(2);
+            setLevel(3);
           }
         );
       }
+    } else {
+      fetchData(event.visibleIndexList as number[], level);
     }
   };
 
@@ -93,7 +99,7 @@ const Home = () => {
           tilesX={tilesLen}
           tilesY={tilesLen}
           onDragMove={onDragMove}
-          onTileClick={onTileClick}
+          // onTileClick={onTileClick}
           handlewheel={handlewheel}
           tileSize={{ width: 131, height: 72 }}
           tileSwitchLevel={4}
