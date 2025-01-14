@@ -1,11 +1,12 @@
 import ReactDOM from "react-dom/client";
 import Gaia from "./index";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { TileDataProps, TileMapEventInfo } from "./interface";
 
 const Home = () => {
   const [data, setData] = useState<TileDataProps[]>();
-  const [level, setLevel] = useState<number>(1);
+  // const [level, setLevel] = useState<number>(1);
+  const level = useRef(1);
   const [tilesLen, setTilesLen] = useState(0);
   useEffect(() => {
     fetchAllData("/data_4.json");
@@ -39,7 +40,7 @@ const Home = () => {
           }),
         })
       ).json();
-      console.log("res", res);
+      // console.log("res", res);
       setData(res.blocks);
       if (len) setTilesLen(len);
     } catch (e) {
@@ -48,11 +49,11 @@ const Home = () => {
   };
 
   const onTileClick = (event: TileMapEventInfo) => {
-    fetchData(event.visibleIndexList as number[], level, 2);
+    fetchData(event.visibleIndexList as number[], level.current, 2);
   };
 
   const onDragMove = (event: TileMapEventInfo) => {
-    // console.log("drag", event);
+    fetchData(event.visibleIndexList as number[], level.current);
   };
 
   const visbleTilesWatcher = (list: number[]) => {
@@ -61,32 +62,47 @@ const Home = () => {
 
   const handlewheel = (event: TileMapEventInfo) => {
     const { zoomLevel } = event;
-    console.log("wheelzoomlevel", event);
+    // console.log("wheelzoomlevel", event);
 
     if (zoomLevel && zoomLevel < 0.25) {
-      if (level === 2) {
-        fetchData(event.visibleIndexList as number[], level - 1, 2).then(() => {
-          setLevel(1);
+      if (level.current === 2) {
+        fetchData(
+          event.visibleIndexList as number[],
+          level.current - 1,
+          2
+        ).then(() => {
+          level.current = 1;
         });
-      } else if (level === 3) {
-        fetchData(event.visibleIndexList as number[], level - 1, 8).then(() => {
-          setLevel(2);
+      } else if (level.current === 3) {
+        fetchData(
+          event.visibleIndexList as number[],
+          level.current - 1,
+          8
+        ).then(() => {
+          level.current = 2;
         });
       }
     } else if (zoomLevel && zoomLevel >= 4) {
-      if (level === 1) {
-        fetchData(event.visibleIndexList as number[], level + 1, 8).then(() => {
-          setLevel(2);
+      if (level.current === 1) {
+        fetchData(
+          event.visibleIndexList as number[],
+          level.current + 1,
+          8
+        ).then(() => {
+          level.current = 2;
         });
-      } else if (level === 2) {
-        fetchData(event.visibleIndexList as number[], level + 1, 32).then(
-          () => {
-            setLevel(3);
-          }
-        );
+      } else if (level.current === 2) {
+        fetchData(
+          event.visibleIndexList as number[],
+          level.current + 1,
+          32
+        ).then(() => {
+          level.current = 3;
+        });
       }
     } else {
-      fetchData(event.visibleIndexList as number[], level);
+      console.log("fetch:", event.visibleIndexList, level);
+      fetchData(event.visibleIndexList as number[], level.current);
     }
   };
 

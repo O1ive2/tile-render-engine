@@ -1,4 +1,11 @@
-import { useState, useEffect, useRef, useMemo, useLayoutEffect } from "react";
+import {
+  useState,
+  useEffect,
+  useRef,
+  useMemo,
+  useLayoutEffect,
+  useCallback,
+} from "react";
 import { TileDataProps, TileMapProps } from "./interface";
 import React from "react";
 import { init } from "./test";
@@ -29,10 +36,20 @@ const Gaia: React.FC<TileMapProps> = ({
       y: number;
     }[]
   >([]);
-  const [viewport, setViewport] = useState({ x: 0, y: 0 });
-  const [zoomLevel, setZoomLevel] = useState(1);
+  const viewport = useRef({ x: 0, y: 0 });
+  const zoomLevel = useRef(1);
   const requestRef = useRef<number>(0); // 用于存储请求的 ID
   const lastPosition = useRef<{ x: number; y: number }>({ x: 0, y: 0 }); // 存储上一次的鼠标位置
+
+  useLayoutEffect(() => {
+    const canvas = canvasRef.current;
+    const context = canvas?.getContext("2d");
+
+    if (context) {
+      drawTiles(context);
+      visbleTilesWatcher?.(calculateImageVisibleArea());
+    }
+  }, [tileData, imgCache]);
 
   const updateData = useMemo(() => {
     return tileData.map((item) => {
@@ -48,23 +65,22 @@ const Gaia: React.FC<TileMapProps> = ({
 
   useLayoutEffect(() => {
     // 在放大到切换瓦片图的临界层级时，修复瓦片图扩张带来的偏移值
-    if (zoomLevel > tileSwitchLevel) {
+    if (zoomLevel.current > tileSwitchLevel) {
       // 在图层levle切换的时候，清空缓存
       if (dynamicLoad) {
         setImgCache([]);
         console.log("clear");
       }
-      setZoomLevel((i) => i / tileSwitchLevel);
-    } else if (zoomLevel < 1 / tileSwitchLevel) {
+      zoomLevel.current = zoomLevel.current / tileSwitchLevel;
+    } else if (zoomLevel.current < 1 / tileSwitchLevel) {
       // 在图层levle切换的时候，清空缓存
       if (dynamicLoad) {
         setImgCache([]);
         console.log("clear");
       }
       // 在缩小到切换瓦片图的临界层级时，修复瓦片图缩减带来的偏移值
-      setZoomLevel((i) => i / (1 / tileSwitchLevel));
+      zoomLevel.current = zoomLevel.current / (1 / tileSwitchLevel);
     }
-
     // 动态加载，则增量更新imgCache缓存
     if (dynamicLoad) {
       setImgCache((cache) => {
@@ -74,7 +90,8 @@ const Gaia: React.FC<TileMapProps> = ({
       // 非动态加载，直接替换imgCache内容
       setImgCache(updateData);
     }
-  }, [tileData]);
+    console.log("imgCache", imgCache);
+  }, [tileData, dynamicLoad]);
 
   // 依据顺序绘制瓦片图
   const drawTiles = (context: CanvasRenderingContext2D) => {
@@ -86,19 +103,19 @@ const Gaia: React.FC<TileMapProps> = ({
       if (img.complete) {
         context.drawImage(
           img,
-          x * zoomLevel + viewport.x,
-          y * zoomLevel + viewport.y,
-          tileWidth * zoomLevel,
-          tileHeight * zoomLevel
+          x * zoomLevel.current + viewport.current.x,
+          y * zoomLevel.current + viewport.current.y,
+          tileWidth * zoomLevel.current,
+          tileHeight * zoomLevel.current
         );
       } else {
         img.onload = () => {
           context.drawImage(
             img,
-            x * zoomLevel + viewport.x,
-            y * zoomLevel + viewport.y,
-            tileWidth * zoomLevel,
-            tileHeight * zoomLevel
+            x * zoomLevel.current + viewport.current.x,
+            y * zoomLevel.current + viewport.current.y,
+            tileWidth * zoomLevel.current,
+            tileHeight * zoomLevel.current
           );
         };
       }
@@ -124,16 +141,16 @@ const Gaia: React.FC<TileMapProps> = ({
       }
 
       requestRef.current = requestAnimationFrame(() => {
-        setViewport((prev) => ({
-          x: prev.x + dx,
-          y: prev.y + dy,
-        }));
+        viewport.current = {
+          x: viewport.current.x + dx,
+          y: viewport.current.y + dy,
+        };
 
         lastPosition.current = { x: moveEvent.clientX, y: moveEvent.clientY };
       });
       onDragMove?.({
-        zoomLevel: zoomLevel,
-        viewPort: { x: viewport.x, y: viewport.y },
+        zoomLevel: zoomLevel.current,
+        viewPort: { x: viewport.current.x, y: viewport.current.y },
         type: "DragMove",
         visibleIndexList: calculateImageVisibleArea(),
       });
@@ -154,16 +171,16 @@ const Gaia: React.FC<TileMapProps> = ({
     const canvasHeight = canvasSize.height as number;
 
     // 计算每个瓦片的缩放后的尺寸
-    const scaledTileWidth = tileSize.width * zoomLevel;
+    const scaledTileWidth = tileSize.width * zoomLevel.current;
     const scaledMapWidth = scaledTileWidth * tilesX;
-    const scaledTileHeight = tileSize.height * zoomLevel;
+    const scaledTileHeight = tileSize.height * zoomLevel.current;
     const scaledMapHeight = scaledTileHeight * tilesY;
 
-    const startX = viewport.x;
-    const startY = viewport.y;
+    const startX = viewport.current.x;
+    const startY = viewport.current.y;
 
-    const endX = viewport.x + scaledMapWidth;
-    const endY = viewport.y + scaledMapHeight;
+    const endX = viewport.current.x + scaledMapWidth;
+    const endY = viewport.current.y + scaledMapHeight;
 
     const visIndex: number[] = [];
     let x1, y1, x2, y2;
@@ -209,20 +226,27 @@ const Gaia: React.FC<TileMapProps> = ({
     const mouseY = event.clientY - rect.top;
 
     // 根据鼠标位置计算新的 viewport，使得缩放在鼠标指针位置发生
-    const newZoomLevel = Math.max(0.1, Math.min(100, zoomLevel * zoomFactor));
+    const newZoomLevel = Math.max(
+      0.1,
+      Math.min(100, zoomLevel.current * zoomFactor)
+    );
 
     // 计算缩放后的偏移量
-    const zoomRatio = newZoomLevel / zoomLevel;
+    const zoomRatio = newZoomLevel / zoomLevel.current;
 
-    const newViewportX = viewport.x - (mouseX - viewport.x) * (zoomRatio - 1);
-    const newViewportY = viewport.y - (mouseY - viewport.y) * (zoomRatio - 1);
+    const newViewportX =
+      viewport.current.x - (mouseX - viewport.current.x) * (zoomRatio - 1);
+    const newViewportY =
+      viewport.current.y - (mouseY - viewport.current.y) * (zoomRatio - 1);
 
     // 更新缩放和视口位置
-    setZoomLevel(newZoomLevel);
+    zoomLevel.current = newZoomLevel;
+    // setZoomLevel(newZoomLevel);
 
     const newViewPort = { x: newViewportX, y: newViewportY };
 
-    setViewport(newViewPort);
+    viewport.current = newViewPort;
+    // setViewport(newViewPort);
 
     handlewheel?.({
       zoomLevel: newZoomLevel,
@@ -234,14 +258,17 @@ const Gaia: React.FC<TileMapProps> = ({
 
   useEffect(() => {
     const canvas = canvasRef.current as HTMLCanvasElement;
-
     const handleWheelWithPreventDefault = (event: any) => {
       event.preventDefault();
       handleWheel(event);
     };
+
     canvas.addEventListener("wheel", handleWheelWithPreventDefault, {
       passive: false,
     });
+    return () => {
+      canvas?.removeEventListener("wheel", handleWheelWithPreventDefault);
+    };
   }, []);
 
   const handleClick: React.MouseEventHandler<HTMLCanvasElement> = (event) => {
@@ -252,20 +279,10 @@ const Gaia: React.FC<TileMapProps> = ({
       type: "Click",
       x: clickX,
       y: clickY,
-      viewPort: viewport,
-      zoomLevel: zoomLevel,
+      viewPort: viewport.current,
+      zoomLevel: zoomLevel.current,
     });
   };
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    const context = canvas?.getContext("2d");
-
-    if (context) {
-      drawTiles(context);
-      visbleTilesWatcher?.(calculateImageVisibleArea());
-    }
-  }, [tileData, zoomLevel, viewport]);
 
   return (
     <canvas
