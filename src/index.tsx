@@ -34,6 +34,7 @@ const Gaia: React.FC<TileMapProps> = ({
       img: HTMLImageElement;
       x: number;
       y: number;
+      index: number;
     }[]
   >([]);
   const viewport = useRef({ x: 0, y: 0 });
@@ -59,7 +60,7 @@ const Gaia: React.FC<TileMapProps> = ({
       const x = tileWidth * (index % tilesX);
       const y = tileHeight * Math.floor(index / tilesX);
 
-      return { img, x, y };
+      return { img, x, y, index };
     });
   }, [tileData]);
 
@@ -83,6 +84,7 @@ const Gaia: React.FC<TileMapProps> = ({
     }
     // 动态加载，则增量更新imgCache缓存
     if (dynamicLoad) {
+      // todo 优化缓存更新逻辑
       setImgCache((cache) => {
         return [...cache, ...updateData];
       });
