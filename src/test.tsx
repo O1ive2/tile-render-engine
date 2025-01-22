@@ -101,7 +101,6 @@ const Home = () => {
         });
       }
     } else {
-      console.log("fetch:", event.visibleIndexList, level);
       fetchData(event.visibleIndexList as number[], level.current);
     }
   };

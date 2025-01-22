@@ -30,13 +30,16 @@ const Gaia: React.FC<TileMapProps> = ({
   const { width: tileWidth, height: tileHeight } = tileSize;
   const canvasRef = useRef<null | HTMLCanvasElement>(null);
   const [imgCache, setImgCache] = useState<
-    {
-      img: HTMLImageElement;
-      x: number;
-      y: number;
-      index: number;
-    }[]
-  >([]);
+    Map<
+      number,
+      {
+        img: HTMLImageElement;
+        x: number;
+        y: number;
+        index: number;
+      }
+    >
+  >(new Map());
   const viewport = useRef({ x: 0, y: 0 });
   const zoomLevel = useRef(1);
   const requestRef = useRef<number>(0); // 用于存储请求的 ID
@@ -65,34 +68,25 @@ const Gaia: React.FC<TileMapProps> = ({
   }, [tileData]);
 
   useLayoutEffect(() => {
+    let newImgCache;
     // 在放大到切换瓦片图的临界层级时，修复瓦片图扩张带来的偏移值
     if (zoomLevel.current > tileSwitchLevel) {
       // 在图层levle切换的时候，清空缓存
-      if (dynamicLoad) {
-        setImgCache([]);
-        console.log("clear");
-      }
+      dynamicLoad ? (newImgCache = new Map()) : (newImgCache = imgCache);
       zoomLevel.current = zoomLevel.current / tileSwitchLevel;
     } else if (zoomLevel.current < 1 / tileSwitchLevel) {
       // 在图层levle切换的时候，清空缓存
-      if (dynamicLoad) {
-        setImgCache([]);
-        console.log("clear");
-      }
+      dynamicLoad ? (newImgCache = new Map()) : (newImgCache = imgCache);
       // 在缩小到切换瓦片图的临界层级时，修复瓦片图缩减带来的偏移值
       zoomLevel.current = zoomLevel.current / (1 / tileSwitchLevel);
-    }
-    // 动态加载，则增量更新imgCache缓存
-    if (dynamicLoad) {
-      // todo 优化缓存更新逻辑
-      setImgCache((cache) => {
-        return [...cache, ...updateData];
-      });
     } else {
-      // 非动态加载，直接替换imgCache内容
-      setImgCache(updateData);
+      newImgCache = new Map(imgCache);
     }
-    console.log("imgCache", imgCache);
+
+    updateData.forEach((img) => {
+      newImgCache.set(img.index, img);
+    });
+    setImgCache(newImgCache);
   }, [tileData, dynamicLoad]);
 
   // 依据顺序绘制瓦片图
