@@ -62,7 +62,7 @@ const Home = () => {
 
   const handlewheel = (event: TileMapEventInfo) => {
     const { zoomLevel } = event;
-    // console.log("wheelzoomlevel", event);
+    console.log("wheelzoomlevel", event);
 
     if (zoomLevel && zoomLevel < 0.25) {
       if (level.current === 2) {
@@ -118,6 +118,7 @@ const Home = () => {
           handlewheel={handlewheel}
           tileSize={{ width: 131, height: 72 }}
           tileSwitchLevel={4}
+          resolutionNumber={3}
           canvasSize={{ width: 600, height: 600 }}
           visbleTilesWatcher={visbleTilesWatcher}
         />

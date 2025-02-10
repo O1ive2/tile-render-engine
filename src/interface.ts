@@ -21,7 +21,10 @@ export interface TileMapProps {
     height?: number;
   };
   visbleTilesWatcher?: (indexList: number[]) => void;
+  // 是否动态加载
   dynamicLoad?: boolean;
+  // 不同分辨率总数
+  resolutionNumber: number;
 }
 
 export interface TileDataProps {

@@ -26,8 +26,10 @@ const Gaia: React.FC<TileMapProps> = ({
   },
   dynamicLoad = false,
   visbleTilesWatcher,
+  resolutionNumber,
 }) => {
   const { width: tileWidth, height: tileHeight } = tileSize;
+  const [curResolution, setCurResolution] = useState<number>(1);
   const canvasRef = useRef<null | HTMLCanvasElement>(null);
   const [imgCache, setImgCache] = useState<
     Map<
@@ -69,16 +71,21 @@ const Gaia: React.FC<TileMapProps> = ({
 
   useLayoutEffect(() => {
     let newImgCache;
-    // 在放大到切换瓦片图的临界层级时，修复瓦片图扩张带来的偏移值
-    if (zoomLevel.current > tileSwitchLevel) {
-      // 在图层levle切换的时候，清空缓存
+    // 在放大到切换瓦片图的临界层级时，修复瓦片图扩张带来的偏移值,并且防止无限制放大
+    if (
+      zoomLevel.current > tileSwitchLevel &&
+      curResolution < resolutionNumber
+    ) {
+      // 在图层level切换的时候，清空缓存
       dynamicLoad ? (newImgCache = new Map()) : (newImgCache = imgCache);
       zoomLevel.current = zoomLevel.current / tileSwitchLevel;
-    } else if (zoomLevel.current < 1 / tileSwitchLevel) {
+      setCurResolution((cur) => cur + 1);
+    } else if (zoomLevel.current < 1 / tileSwitchLevel && curResolution > 1) {
       // 在图层levle切换的时候，清空缓存
       dynamicLoad ? (newImgCache = new Map()) : (newImgCache = imgCache);
       // 在缩小到切换瓦片图的临界层级时，修复瓦片图缩减带来的偏移值
       zoomLevel.current = zoomLevel.current / (1 / tileSwitchLevel);
+      setCurResolution((cur) => cur - 1);
     } else {
       newImgCache = new Map(imgCache);
     }
