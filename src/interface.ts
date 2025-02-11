@@ -1,30 +1,40 @@
 export interface TileMapProps {
   tileData: TileDataProps[];
-  // Number of tile in X
+  // The number of tiles on the x-axis
   tilesX: number;
+  // The number of tiles on the y-axis
   tilesY: number;
   // Click event callback
   onTileClick?: (event: TileMapEventInfo) => void;
   // Wheel event callback
   handlewheel?: (event: TileMapEventInfo) => void;
   onDragMove?: (event: TileMapEventInfo) => void;
-  // Threshold level of tile switching,default 1
-  tileSwitchLevel?: number;
-  // Single tile size
-  tileSize: {
-    height: number;
-    width: number;
-  };
   // Canvas size
   canvasSize: {
     width?: number;
     height?: number;
   };
-  visbleTilesWatcher?: (indexList: number[]) => void;
-  // 是否动态加载
-  dynamicLoad?: boolean;
-  // 不同分辨率总数
-  resolutionNumber: number;
+  // Whether to load incrementally
+  incrementalLoad?: boolean;
+  // The number of different resolutions
+  // resolutionNumber: number;
+  tileConfig: {
+    // Single tile size
+    tileSize: {
+      height: number;
+      width: number;
+    };
+    // Threshold level of tile switching,default 1
+    tileSwitchLevel?: number;
+    tilesNumPerResolution: ITilesNum[] | ITilesNum;
+  };
+}
+
+interface ITilesNum {
+  // The number of tiles on the x-axis
+  x: number;
+  // The number of tiles on the y-axis
+  y: number;
 }
 
 export interface TileDataProps {

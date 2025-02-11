@@ -16,19 +16,32 @@ const Gaia: React.FC<TileMapProps> = ({
   onTileClick,
   handlewheel,
   onDragMove,
-  tileSize,
   tilesX,
   tilesY,
-  tileSwitchLevel = 1,
   canvasSize = {
     width: 200,
     height: 200,
   },
-  dynamicLoad = false,
-  visbleTilesWatcher,
-  resolutionNumber,
+  incrementalLoad = false,
+  tileConfig,
 }) => {
-  const { width: tileWidth, height: tileHeight } = tileSize;
+  const {
+    tileSize: { width: tileWidth, height: tileHeight },
+    tileSwitchLevel = 1,
+    tilesNumPerResolution,
+  } = tileConfig;
+  const resolutionNumber =
+    tilesNumPerResolution instanceof Array ? tilesNumPerResolution.length : 1;
+  // const [tilesX, setTilesX] = useState<number>(
+  //   tilesNumPerResolution instanceof Array
+  //     ? tilesNumPerResolution[0].x
+  //     : tilesNumPerResolution.x
+  // );
+  // const [tilesY, setTilesY] = useState<number>(
+  //   tilesNumPerResolution instanceof Array
+  //     ? tilesNumPerResolution[0].y
+  //     : tilesNumPerResolution.y
+  // );
   const [curResolution, setCurResolution] = useState<number>(1);
   const canvasRef = useRef<null | HTMLCanvasElement>(null);
   const [imgCache, setImgCache] = useState<
@@ -53,7 +66,6 @@ const Gaia: React.FC<TileMapProps> = ({
 
     if (context) {
       drawTiles(context);
-      visbleTilesWatcher?.(calculateImageVisibleArea());
     }
   }, [tileData, imgCache]);
 
@@ -77,12 +89,12 @@ const Gaia: React.FC<TileMapProps> = ({
       curResolution < resolutionNumber
     ) {
       // 在图层level切换的时候，清空缓存
-      dynamicLoad ? (newImgCache = new Map()) : (newImgCache = imgCache);
+      incrementalLoad ? (newImgCache = new Map()) : (newImgCache = imgCache);
       zoomLevel.current = zoomLevel.current / tileSwitchLevel;
       setCurResolution((cur) => cur + 1);
     } else if (zoomLevel.current < 1 / tileSwitchLevel && curResolution > 1) {
       // 在图层levle切换的时候，清空缓存
-      dynamicLoad ? (newImgCache = new Map()) : (newImgCache = imgCache);
+      incrementalLoad ? (newImgCache = new Map()) : (newImgCache = imgCache);
       // 在缩小到切换瓦片图的临界层级时，修复瓦片图缩减带来的偏移值
       zoomLevel.current = zoomLevel.current / (1 / tileSwitchLevel);
       setCurResolution((cur) => cur - 1);
@@ -94,7 +106,7 @@ const Gaia: React.FC<TileMapProps> = ({
       newImgCache.set(img.index, img);
     });
     setImgCache(newImgCache);
-  }, [tileData, dynamicLoad]);
+  }, [tileData, incrementalLoad]);
 
   // 依据顺序绘制瓦片图
   const drawTiles = (context: CanvasRenderingContext2D) => {
@@ -174,9 +186,9 @@ const Gaia: React.FC<TileMapProps> = ({
     const canvasHeight = canvasSize.height as number;
 
     // 计算每个瓦片的缩放后的尺寸
-    const scaledTileWidth = tileSize.width * zoomLevel.current;
+    const scaledTileWidth = tileWidth * zoomLevel.current;
     const scaledMapWidth = scaledTileWidth * tilesX;
-    const scaledTileHeight = tileSize.height * zoomLevel.current;
+    const scaledTileHeight = tileHeight * zoomLevel.current;
     const scaledMapHeight = scaledTileHeight * tilesY;
 
     const startX = viewport.current.x;

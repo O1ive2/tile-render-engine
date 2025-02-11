@@ -110,17 +110,22 @@ const Home = () => {
       {data ? (
         <Gaia
           tileData={data}
-          dynamicLoad={true}
+          incrementalLoad={true}
           tilesX={tilesLen}
           tilesY={tilesLen}
           onDragMove={onDragMove}
           // onTileClick={onTileClick}
           handlewheel={handlewheel}
-          tileSize={{ width: 131, height: 72 }}
-          tileSwitchLevel={4}
-          resolutionNumber={3}
-          canvasSize={{ width: 600, height: 600 }}
-          visbleTilesWatcher={visbleTilesWatcher}
+          tileConfig={{
+            tileSize: { width: 131, height: 72 },
+            tileSwitchLevel: 4,
+            tilesNumPerResolution: [
+              { x: 4, y: 4 },
+              { x: 8, y: 8 },
+              { x: 32, y: 32 },
+            ],
+          }}
+          canvasSize={{ width: 1000, height: 1000 }}
         />
       ) : (
         <></>
