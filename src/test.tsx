@@ -5,9 +5,7 @@ import { TileDataProps, TileMapEventInfo } from "./interface";
 
 const Home = () => {
   const [data, setData] = useState<TileDataProps[]>();
-  // const [level, setLevel] = useState<number>(1);
   const level = useRef(1);
-  const [tilesLen, setTilesLen] = useState(0);
   useEffect(() => {
     fetchAllData("/data_4.json");
   }, []);
@@ -16,7 +14,6 @@ const Home = () => {
     try {
       const res = await (await fetch(path)).json();
       setData(res.blocks);
-      setTilesLen(Math.floor(Math.sqrt(res.blocks.length)));
     } catch (e) {
       console.log("error");
     }
@@ -111,8 +108,8 @@ const Home = () => {
         <Gaia
           tileData={data}
           incrementalLoad={true}
-          tilesX={tilesLen}
-          tilesY={tilesLen}
+          // tilesX={tilesLen}
+          // tilesY={tilesLen}
           onDragMove={onDragMove}
           // onTileClick={onTileClick}
           handlewheel={handlewheel}
@@ -120,7 +117,7 @@ const Home = () => {
             tileSize: { width: 131, height: 72 },
             tileSwitchLevel: 4,
             tilesNumPerResolution: [
-              { x: 4, y: 4 },
+              { x: 2, y: 2 },
               { x: 8, y: 8 },
               { x: 32, y: 32 },
             ],

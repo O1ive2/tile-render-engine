@@ -14,10 +14,8 @@ import "./index.css";
 const Gaia: React.FC<TileMapProps> = ({
   tileData,
   onTileClick,
-  handlewheel,
+  handlewheel: handleWheelCallback,
   onDragMove,
-  tilesX,
-  tilesY,
   canvasSize = {
     width: 200,
     height: 200,
@@ -32,17 +30,17 @@ const Gaia: React.FC<TileMapProps> = ({
   } = tileConfig;
   const resolutionNumber =
     tilesNumPerResolution instanceof Array ? tilesNumPerResolution.length : 1;
-  // const [tilesX, setTilesX] = useState<number>(
-  //   tilesNumPerResolution instanceof Array
-  //     ? tilesNumPerResolution[0].x
-  //     : tilesNumPerResolution.x
-  // );
-  // const [tilesY, setTilesY] = useState<number>(
-  //   tilesNumPerResolution instanceof Array
-  //     ? tilesNumPerResolution[0].y
-  //     : tilesNumPerResolution.y
-  // );
-  const [curResolution, setCurResolution] = useState<number>(1);
+  const [tilesX, setTilesX] = useState<number>(
+    tilesNumPerResolution instanceof Array
+      ? tilesNumPerResolution[0].x
+      : tilesNumPerResolution.x
+  );
+  const [tilesY, setTilesY] = useState<number>(
+    tilesNumPerResolution instanceof Array
+      ? tilesNumPerResolution[0].y
+      : tilesNumPerResolution.y
+  );
+  const [curResolution, setCurResolution] = useState<number>(0);
   const canvasRef = useRef<null | HTMLCanvasElement>(null);
   const [imgCache, setImgCache] = useState<
     Map<
@@ -79,21 +77,28 @@ const Gaia: React.FC<TileMapProps> = ({
 
       return { img, x, y, index };
     });
-  }, [tileData]);
+  }, [tileData, tilesX]);
+
+  useEffect(() => {
+    tilesNumPerResolution instanceof Array &&
+      setTilesX(tilesNumPerResolution[curResolution].x);
+    tilesNumPerResolution instanceof Array &&
+      setTilesY(tilesNumPerResolution[curResolution].y);
+  }, [curResolution]);
 
   useLayoutEffect(() => {
     let newImgCache;
     // 在放大到切换瓦片图的临界层级时，修复瓦片图扩张带来的偏移值,并且防止无限制放大
     if (
       zoomLevel.current > tileSwitchLevel &&
-      curResolution < resolutionNumber
+      curResolution < resolutionNumber - 1
     ) {
       // 在图层level切换的时候，清空缓存
       incrementalLoad ? (newImgCache = new Map()) : (newImgCache = imgCache);
       zoomLevel.current = zoomLevel.current / tileSwitchLevel;
       setCurResolution((cur) => cur + 1);
-    } else if (zoomLevel.current < 1 / tileSwitchLevel && curResolution > 1) {
-      // 在图层levle切换的时候，清空缓存
+    } else if (zoomLevel.current < 1 / tileSwitchLevel && curResolution > 0) {
+      // 在图层level切换的时候，清空缓存
       incrementalLoad ? (newImgCache = new Map()) : (newImgCache = imgCache);
       // 在缩小到切换瓦片图的临界层级时，修复瓦片图缩减带来的偏移值
       zoomLevel.current = zoomLevel.current / (1 / tileSwitchLevel);
@@ -111,7 +116,6 @@ const Gaia: React.FC<TileMapProps> = ({
   // 依据顺序绘制瓦片图
   const drawTiles = (context: CanvasRenderingContext2D) => {
     context.clearRect(0, 0, context.canvas.width, context.canvas.height);
-
     imgCache?.forEach((item) => {
       const { x, y, img } = item;
 
@@ -263,11 +267,12 @@ const Gaia: React.FC<TileMapProps> = ({
     viewport.current = newViewPort;
     // setViewport(newViewPort);
 
-    handlewheel?.({
+    handleWheelCallback?.({
       zoomLevel: newZoomLevel,
       viewPort: { x: newViewportX, y: newViewportY },
       type: "Wheel",
       visibleIndexList: calculateImageVisibleArea(),
+      curResolution: curResolution,
     });
   };
 
@@ -275,11 +280,10 @@ const Gaia: React.FC<TileMapProps> = ({
     const canvas = canvasRef.current as HTMLCanvasElement;
     const handleWheelWithPreventDefault = (event: any) => {
       event.preventDefault();
-      handleWheel(event);
     };
 
     canvas.addEventListener("wheel", handleWheelWithPreventDefault, {
-      passive: false,
+      // passive: false,
     });
     return () => {
       canvas?.removeEventListener("wheel", handleWheelWithPreventDefault);
