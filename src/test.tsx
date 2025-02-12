@@ -39,7 +39,6 @@ const Home = () => {
       ).json();
       // console.log("res", res);
       setData(res.blocks);
-      if (len) setTilesLen(len);
     } catch (e) {
       console.log("error");
     }
@@ -108,13 +107,10 @@ const Home = () => {
         <Gaia
           tileData={data}
           incrementalLoad={true}
-          // tilesX={tilesLen}
-          // tilesY={tilesLen}
           onDragMove={onDragMove}
           // onTileClick={onTileClick}
           handlewheel={handlewheel}
           tileConfig={{
-            tileSize: { width: 131, height: 72 },
             tileSwitchLevel: 4,
             tilesNumPerResolution: [
               { x: 2, y: 2 },

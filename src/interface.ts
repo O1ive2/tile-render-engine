@@ -1,10 +1,5 @@
 export interface TileMapProps {
   tileData: TileDataProps[];
-  // The number of tiles on the x-axis
-  // tilesX: number;
-  // // The number of tiles on the y-axis
-  // tilesY: number;
-  // Click event callback
   onTileClick?: (event: TileMapEventInfo) => void;
   // Wheel event callback
   handlewheel?: (event: TileMapEventInfo) => void;
@@ -16,16 +11,11 @@ export interface TileMapProps {
   };
   // Whether to load incrementally
   incrementalLoad?: boolean;
-  // The number of different resolutions
   // resolutionNumber: number;
   tileConfig: {
-    // Single tile size
-    tileSize: {
-      height: number;
-      width: number;
-    };
     // Threshold level of tile switching,default 1
     tileSwitchLevel?: number;
+    // The number of images in the x,y axis of the tile map corresponding to each resolution
     tilesNumPerResolution: ITilesNum[] | ITilesNum;
   };
 }

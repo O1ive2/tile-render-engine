@@ -6,7 +6,7 @@ import {
   useLayoutEffect,
   useCallback,
 } from "react";
-import { TileDataProps, TileMapProps } from "./interface";
+import { TileMapProps } from "./interface";
 import React from "react";
 import { init } from "./test";
 import "./index.css";
@@ -24,12 +24,31 @@ const Gaia: React.FC<TileMapProps> = ({
   tileConfig,
 }) => {
   const {
-    tileSize: { width: tileWidth, height: tileHeight },
+    // tileSize: { width: tileWidth, height: tileHeight },
     tileSwitchLevel = 1,
     tilesNumPerResolution,
   } = tileConfig;
-  const resolutionNumber =
-    tilesNumPerResolution instanceof Array ? tilesNumPerResolution.length : 1;
+  const resolutionNumber = useMemo(() => {
+    return tilesNumPerResolution instanceof Array
+      ? tilesNumPerResolution.length
+      : 1;
+  }, []);
+
+  const [tileWidth, setTileWidth] = useState(0);
+  const [tileHeight, setTileHeight] = useState(0);
+
+  useEffect(() => {
+    if (tileData[0]) {
+      const img = new Image();
+      img.src = `data:image/png;base64,${tileData[0].blockBase64Str}`;
+
+      img.onload = () => {
+        setTileHeight(img.height);
+        setTileWidth(img.width);
+      };
+    }
+  }, []);
+
   const [tilesX, setTilesX] = useState<number>(
     tilesNumPerResolution instanceof Array
       ? tilesNumPerResolution[0].x
@@ -65,7 +84,7 @@ const Gaia: React.FC<TileMapProps> = ({
     if (context) {
       drawTiles(context);
     }
-  }, [tileData, imgCache]);
+  }, [tileData, imgCache, tilesX]);
 
   const updateData = useMemo(() => {
     return tileData.map((item) => {
@@ -79,7 +98,7 @@ const Gaia: React.FC<TileMapProps> = ({
     });
   }, [tileData, tilesX]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     tilesNumPerResolution instanceof Array &&
       setTilesX(tilesNumPerResolution[curResolution].x);
     tilesNumPerResolution instanceof Array &&
