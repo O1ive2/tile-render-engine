@@ -108,7 +108,7 @@ const Home = () => {
           tileData={data}
           incrementalLoad={true}
           onDragMove={onDragMove}
-          // onTileClick={onTileClick}
+          onTileClick={onTileClick}
           handlewheel={handlewheel}
           tileConfig={{
             tileSwitchLevel: 4,

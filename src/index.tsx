@@ -1,11 +1,4 @@
-import {
-  useState,
-  useEffect,
-  useRef,
-  useMemo,
-  useLayoutEffect,
-  useCallback,
-} from "react";
+import { useState, useEffect, useRef, useMemo, useLayoutEffect } from "react";
 import { TileMapProps } from "./interface";
 import React from "react";
 import { init } from "./test";
@@ -23,11 +16,8 @@ const Gaia: React.FC<TileMapProps> = ({
   incrementalLoad = false,
   tileConfig,
 }) => {
-  const {
-    // tileSize: { width: tileWidth, height: tileHeight },
-    tileSwitchLevel = 1,
-    tilesNumPerResolution,
-  } = tileConfig;
+  const [renderFlag, setRenderFlag] = useState<boolean>(true);
+  const { tileSwitchLevel = 1, tilesNumPerResolution } = tileConfig;
   const resolutionNumber = useMemo(() => {
     return tilesNumPerResolution instanceof Array
       ? tilesNumPerResolution.length
@@ -84,7 +74,14 @@ const Gaia: React.FC<TileMapProps> = ({
     if (context) {
       drawTiles(context);
     }
-  }, [tileData, imgCache, tilesX]);
+  }, [tileData, imgCache, tilesX, renderFlag]);
+
+  useLayoutEffect(() => {
+    tilesNumPerResolution instanceof Array &&
+      setTilesX(tilesNumPerResolution[curResolution].x);
+    tilesNumPerResolution instanceof Array &&
+      setTilesY(tilesNumPerResolution[curResolution].y);
+  }, [curResolution]);
 
   const updateData = useMemo(() => {
     return tileData.map((item) => {
@@ -93,17 +90,9 @@ const Gaia: React.FC<TileMapProps> = ({
       img.src = `data:img/png;base64,${blockBase64Str}`;
       const x = tileWidth * (index % tilesX);
       const y = tileHeight * Math.floor(index / tilesX);
-
       return { img, x, y, index };
     });
   }, [tileData, tilesX]);
-
-  useLayoutEffect(() => {
-    tilesNumPerResolution instanceof Array &&
-      setTilesX(tilesNumPerResolution[curResolution].x);
-    tilesNumPerResolution instanceof Array &&
-      setTilesY(tilesNumPerResolution[curResolution].y);
-  }, [curResolution]);
 
   useLayoutEffect(() => {
     let newImgCache;
@@ -171,6 +160,7 @@ const Gaia: React.FC<TileMapProps> = ({
 
     // 使用 requestAnimationFrame 延迟更新视口
     const onMouseMove = (moveEvent: MouseEvent) => {
+      setRenderFlag((f) => !f);
       const dx = moveEvent.clientX - lastPosition.current.x;
       const dy = moveEvent.clientY - lastPosition.current.y;
 
@@ -252,6 +242,7 @@ const Gaia: React.FC<TileMapProps> = ({
   };
 
   const handleWheel: React.WheelEventHandler<HTMLCanvasElement> = (event) => {
+    setRenderFlag((f) => !f);
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -310,6 +301,7 @@ const Gaia: React.FC<TileMapProps> = ({
   }, []);
 
   const handleClick: React.MouseEventHandler<HTMLCanvasElement> = (event) => {
+    setRenderFlag((f) => !f);
     const rect = canvasRef.current?.getBoundingClientRect() as DOMRect;
     const clickX = event.clientX - rect.left;
     const clickY = event.clientY - rect.top;
