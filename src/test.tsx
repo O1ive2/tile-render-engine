@@ -19,11 +19,7 @@ const Home = () => {
     }
   };
 
-  const fetchData = async (
-    indexList: number[],
-    level: number,
-    len?: number
-  ) => {
+  const fetchData = async (indexList: number[], level: number) => {
     try {
       const res = await (
         await fetch(`http://192.168.15.92:3008/getBlocks`, {
@@ -45,11 +41,17 @@ const Home = () => {
   };
 
   const onTileClick = (event: TileMapEventInfo) => {
-    fetchData(event.visibleIndexList as number[], level.current, 2);
+    fetchData(
+      event.visibleIndexList as number[],
+      event.curResolution as number
+    );
   };
 
   const onDragMove = (event: TileMapEventInfo) => {
-    fetchData(event.visibleIndexList as number[], level.current);
+    fetchData(
+      event.visibleIndexList as number[],
+      event.curResolution as number
+    );
   };
 
   const visbleTilesWatcher = (list: number[]) => {
@@ -57,48 +59,11 @@ const Home = () => {
   };
 
   const handlewheel = (event: TileMapEventInfo) => {
-    const { zoomLevel } = event;
     console.log("wheelzoomlevel", event);
-
-    if (zoomLevel && zoomLevel < 0.25) {
-      if (level.current === 2) {
-        fetchData(
-          event.visibleIndexList as number[],
-          level.current - 1,
-          2
-        ).then(() => {
-          level.current = 1;
-        });
-      } else if (level.current === 3) {
-        fetchData(
-          event.visibleIndexList as number[],
-          level.current - 1,
-          8
-        ).then(() => {
-          level.current = 2;
-        });
-      }
-    } else if (zoomLevel && zoomLevel >= 4) {
-      if (level.current === 1) {
-        fetchData(
-          event.visibleIndexList as number[],
-          level.current + 1,
-          8
-        ).then(() => {
-          level.current = 2;
-        });
-      } else if (level.current === 2) {
-        fetchData(
-          event.visibleIndexList as number[],
-          level.current + 1,
-          32
-        ).then(() => {
-          level.current = 3;
-        });
-      }
-    } else {
-      fetchData(event.visibleIndexList as number[], level.current);
-    }
+    fetchData(
+      event.visibleIndexList as number[],
+      event.curResolution as number
+    );
   };
 
   return (

@@ -67,10 +67,9 @@ const Gaia: React.FC<TileMapProps> = ({
   const requestRef = useRef<number>(0); // 用于存储请求的 ID
   const lastPosition = useRef<{ x: number; y: number }>({ x: 0, y: 0 }); // 存储上一次的鼠标位置
 
+  const canvas = canvasRef.current;
+  const context = canvas?.getContext("2d");
   useLayoutEffect(() => {
-    const canvas = canvasRef.current;
-    const context = canvas?.getContext("2d");
-
     if (context) {
       drawTiles(context);
     }
@@ -181,6 +180,7 @@ const Gaia: React.FC<TileMapProps> = ({
         viewPort: { x: viewport.current.x, y: viewport.current.y },
         type: "DragMove",
         visibleIndexList: calculateImageVisibleArea(),
+        curResolution: curResolution,
       });
     };
 
@@ -270,12 +270,10 @@ const Gaia: React.FC<TileMapProps> = ({
 
     // 更新缩放和视口位置
     zoomLevel.current = newZoomLevel;
-    // setZoomLevel(newZoomLevel);
 
     const newViewPort = { x: newViewportX, y: newViewportY };
 
     viewport.current = newViewPort;
-    // setViewport(newViewPort);
 
     handleWheelCallback?.({
       zoomLevel: newZoomLevel,
@@ -307,10 +305,14 @@ const Gaia: React.FC<TileMapProps> = ({
     const clickY = event.clientY - rect.top;
     onTileClick?.({
       type: "Click",
-      x: clickX,
-      y: clickY,
+      curResolution: curResolution,
       viewPort: viewport.current,
       zoomLevel: zoomLevel.current,
+      visibleIndexList: calculateImageVisibleArea(),
+      mouseInfo: {
+        x: clickX,
+        y: clickY,
+      },
     });
   };
 

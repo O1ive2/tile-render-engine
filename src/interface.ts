@@ -4,8 +4,8 @@ export interface TileMapProps {
   // Wheel event callback
   handlewheel?: (event: TileMapEventInfo) => void;
   onDragMove?: (event: TileMapEventInfo) => void;
-  // Canvas size
-  canvasSize: {
+  // Canvas size,default width 200px,height 200px
+  canvasSize?: {
     width?: number;
     height?: number;
   };
@@ -38,14 +38,16 @@ export interface Location {
 }
 
 export interface TileMapEventInfo {
-  type?: "Wheel" | "Click" | "DragMove";
-  viewPort?: {
-    x?: number;
-    y?: number;
+  type: "Wheel" | "Click" | "DragMove";
+  viewPort: {
+    x: number;
+    y: number;
   };
-  zoomLevel?: number;
-  x?: number;
-  y?: number;
-  visibleIndexList?: number[];
-  curResolution?: number;
+  zoomLevel: number;
+  visibleIndexList: number[];
+  curResolution: number;
+  mouseInfo?: {
+    x: number;
+    y: number;
+  };
 }
