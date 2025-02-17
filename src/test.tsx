@@ -33,7 +33,6 @@ const Home = () => {
           }),
         })
       ).json();
-      // console.log("res", res);
       setData(res.blocks);
     } catch (e) {
       console.log("error");
