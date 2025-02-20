@@ -1,4 +1,11 @@
-import { useState, useEffect, useRef, useMemo, useLayoutEffect } from "react";
+import {
+  useState,
+  useEffect,
+  useRef,
+  useMemo,
+  useLayoutEffect,
+  memo,
+} from "react";
 import { TileMapProps } from "./interface";
 import React from "react";
 import { init } from "./test";
@@ -13,7 +20,6 @@ const Gaia: React.FC<TileMapProps> = ({
     width: 200,
     height: 200,
   },
-  incrementalLoad = false,
   tileConfig,
 }) => {
   const [renderFlag, setRenderFlag] = useState<boolean>(true);
@@ -62,13 +68,27 @@ const Gaia: React.FC<TileMapProps> = ({
       }
     >
   >(new Map());
-  const viewport = useRef({ x: 0, y: 0 });
+  const viewport = useRef({
+    x: 0,
+    y: 0,
+  });
   const zoomLevel = useRef(1);
   const requestRef = useRef<number>(0); // 用于存储请求的 ID
   const lastPosition = useRef<{ x: number; y: number }>({ x: 0, y: 0 }); // 存储上一次的鼠标位置
 
   const canvas = canvasRef.current;
   const context = canvas?.getContext("2d");
+
+  useEffect(() => {
+    const fullWidth = tilesX * tileWidth;
+    const fullHeight = tilesY * tileHeight;
+
+    viewport.current = {
+      x: ((canvasSize.width as number) - fullWidth) / 2,
+      y: ((canvasSize.height as number) - fullHeight) / 2,
+    };
+  }, [tileHeight]);
+
   useLayoutEffect(() => {
     if (context) {
       drawTiles(context);
@@ -101,13 +121,13 @@ const Gaia: React.FC<TileMapProps> = ({
       curResolution < resolutionNumber - 1
     ) {
       // 在分辨率切换的时候，清空缓存
-      incrementalLoad ? (newImgCache = new Map()) : (newImgCache = imgCache);
+      newImgCache = new Map();
       // 修复瓦片图扩张切换带来的偏移值,并且防止无限制放大
       zoomLevel.current = zoomLevel.current / tileSwitchLevel;
       setCurResolution((cur) => cur + 1);
     } else if (zoomLevel.current < 1 / tileSwitchLevel && curResolution > 0) {
       // 在分辨率切换的时候，清空缓存
-      incrementalLoad ? (newImgCache = new Map()) : (newImgCache = imgCache);
+      newImgCache = new Map();
       // 在缩小到切换瓦片图的临界level时，修复瓦片图缩减切换带来的偏移值
       zoomLevel.current = zoomLevel.current / (1 / tileSwitchLevel);
       setCurResolution((cur) => cur - 1);
@@ -118,7 +138,7 @@ const Gaia: React.FC<TileMapProps> = ({
       });
     }
     setImgCache(newImgCache);
-  }, [tileData, incrementalLoad]);
+  }, [tileData]);
 
   // 依据顺序绘制瓦片图
   const drawTiles = (context: CanvasRenderingContext2D) => {
@@ -331,4 +351,4 @@ const Gaia: React.FC<TileMapProps> = ({
 
 init();
 
-export default Gaia;
+export default memo(Gaia);
