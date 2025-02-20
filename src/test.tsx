@@ -63,6 +63,14 @@ const Home = () => {
       event.visibleIndexList as number[],
       event.curResolution as number
     );
+
+    // if (event.curResolution === 0) {
+    //   fetchAllData("/data_4.json");
+    // } else if (event.curResolution === 1) {
+    //   fetchAllData("/data_64.json");
+    // } else {
+    //   fetchAllData("/data_1024.json");
+    // }
   };
 
   return (
@@ -70,9 +78,8 @@ const Home = () => {
       {data ? (
         <Gaia
           tileData={data}
-          incrementalLoad={true}
           onDragMove={onDragMove}
-          onTileClick={onTileClick}
+          // onTileClick={onTileClick}
           handlewheel={handlewheel}
           tileConfig={{
             tileSwitchLevel: 4,
