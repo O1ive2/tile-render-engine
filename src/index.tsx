@@ -349,6 +349,4 @@ const Gaia: React.FC<TileMapProps> = ({
   );
 };
 
-init();
-
 export default memo(Gaia);

@@ -22,7 +22,7 @@ const Home = () => {
   const fetchData = async (indexList: number[], level: number) => {
     try {
       const res = await (
-        await fetch(`http://192.168.15.92:3008/getBlocks`, {
+        await fetch(`http://localhost:3008/getBlocks`, {
           method: "post",
           headers: {
             "Content-Type": "application/json",
