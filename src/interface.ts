@@ -1,4 +1,5 @@
 export interface TileMapProps {
+  enableCache?: boolean;
   tileData: TileDataProps[];
   onTileClick?: (event: TileMapEventInfo) => void;
   handlewheel?: (event: TileMapEventInfo) => void;

@@ -12,6 +12,7 @@ import { init } from "./test";
 import "./index.css";
 
 const Gaia: React.FC<TileMapProps> = ({
+  enableCache = false,
   tileData,
   onTileClick,
   handlewheel: handleWheelCallback,
@@ -32,18 +33,6 @@ const Gaia: React.FC<TileMapProps> = ({
 
   const [tileWidth, setTileWidth] = useState(0);
   const [tileHeight, setTileHeight] = useState(0);
-
-  useEffect(() => {
-    if (tileData[0]) {
-      const img = new Image();
-      img.src = `data:image/png;base64,${tileData[0].blockBase64Str}`;
-
-      img.onload = () => {
-        setTileHeight(img.height);
-        setTileWidth(img.width);
-      };
-    }
-  }, []);
 
   const [tilesX, setTilesX] = useState<number>(
     tilesNumPerResolution instanceof Array
@@ -79,6 +68,20 @@ const Gaia: React.FC<TileMapProps> = ({
   const canvas = canvasRef.current;
   const context = canvas?.getContext("2d");
 
+  // 计算瓦片图的宽高
+  useLayoutEffect(() => {
+    if (tileData[0]) {
+      const img = new Image();
+      img.src = `data:image/png;base64,${tileData[0].blockBase64Str}`;
+
+      img.onload = () => {
+        setTileHeight(img.height);
+        setTileWidth(img.width);
+      };
+    }
+  }, []);
+
+  // 计算初始位置
   useEffect(() => {
     const fullWidth = tilesX * tileWidth;
     const fullHeight = tilesY * tileHeight;
@@ -87,20 +90,7 @@ const Gaia: React.FC<TileMapProps> = ({
       x: ((canvasSize.width as number) - fullWidth) / 2,
       y: ((canvasSize.height as number) - fullHeight) / 2,
     };
-  }, [tileHeight]);
-
-  useLayoutEffect(() => {
-    if (context) {
-      drawTiles(context);
-    }
-  }, [tileData, imgCache, tilesX, renderFlag]);
-
-  useLayoutEffect(() => {
-    tilesNumPerResolution instanceof Array &&
-      setTilesX(tilesNumPerResolution[curResolution].x);
-    tilesNumPerResolution instanceof Array &&
-      setTilesY(tilesNumPerResolution[curResolution].y);
-  }, [curResolution]);
+  }, [tileWidth, tileHeight]);
 
   const updateData = useMemo(() => {
     return tileData.map((item) => {
@@ -111,10 +101,28 @@ const Gaia: React.FC<TileMapProps> = ({
       const y = tileHeight * Math.floor(index / tilesX);
       return { img, x, y, index };
     });
-  }, [tileData, tilesX]);
+  }, [tileData, tilesX, tileWidth]);
+
+  // 绘图
+  useLayoutEffect(() => {
+    if (context) {
+      drawTiles(context);
+    }
+  }, [renderFlag, imgCache]);
+
+  // 切换分辨率时，更新x，y轴瓦片数量
+  useLayoutEffect(() => {
+    tilesNumPerResolution instanceof Array &&
+      setTilesX(tilesNumPerResolution[curResolution].x);
+    tilesNumPerResolution instanceof Array &&
+      setTilesY(tilesNumPerResolution[curResolution].y);
+  }, [curResolution]);
 
   useLayoutEffect(() => {
-    let newImgCache;
+    let newImgCache: Map<
+      number,
+      { img: HTMLImageElement; x: number; y: number; index: number }
+    >;
     // 在放大到切换瓦片图的临界level时的处理
     if (
       zoomLevel.current > tileSwitchLevel &&
@@ -132,13 +140,18 @@ const Gaia: React.FC<TileMapProps> = ({
       zoomLevel.current = zoomLevel.current / (1 / tileSwitchLevel);
       setCurResolution((cur) => cur - 1);
     } else {
-      newImgCache = new Map(imgCache);
+      if (enableCache) {
+        newImgCache = new Map(imgCache);
+      } else {
+        newImgCache = new Map();
+      }
+
       updateData.forEach((img) => {
         newImgCache.set(img.index, img);
       });
     }
     setImgCache(newImgCache);
-  }, [tileData]);
+  }, [tileData, updateData]);
 
   // 依据顺序绘制瓦片图
   const drawTiles = (context: CanvasRenderingContext2D) => {
@@ -231,7 +244,10 @@ const Gaia: React.FC<TileMapProps> = ({
     const endY = viewport.current.y + scaledMapHeight;
 
     const visIndex: number[] = [];
-    let x1, y1, x2, y2;
+    let x1: number = 0,
+      y1: number = 0,
+      x2: number = 0,
+      y2: number = 0;
 
     // 判断瓦片图在canvas内部
     if (
@@ -348,5 +364,7 @@ const Gaia: React.FC<TileMapProps> = ({
     />
   );
 };
+
+init();
 
 export default memo(Gaia);

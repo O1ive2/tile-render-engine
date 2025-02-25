@@ -39,22 +39,11 @@ const Home = () => {
     }
   };
 
-  const onTileClick = (event: TileMapEventInfo) => {
-    fetchData(
-      event.visibleIndexList as number[],
-      event.curResolution as number
-    );
-  };
-
   const onDragMove = (event: TileMapEventInfo) => {
     fetchData(
       event.visibleIndexList as number[],
       event.curResolution as number
     );
-  };
-
-  const visbleTilesWatcher = (list: number[]) => {
-    // console.log("vis", list);
   };
 
   const handlewheel = (event: TileMapEventInfo) => {
@@ -77,6 +66,7 @@ const Home = () => {
     <div className="home">
       {data ? (
         <Gaia
+          enableCache={false}
           tileData={data}
           onDragMove={onDragMove}
           // onTileClick={onTileClick}
@@ -89,7 +79,7 @@ const Home = () => {
               { x: 32, y: 32 },
             ],
           }}
-          canvasSize={{ width: 1000, height: 1000 }}
+          canvasSize={{ width: 1000, height: 600 }}
         />
       ) : (
         <></>
