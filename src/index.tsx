@@ -10,7 +10,8 @@ import { TileMapProps } from "./interface";
 import React from "react";
 import { init } from "./test";
 import "./index.css";
-import calculateImageVisibleArea from "./utils/calculateImageVisibleArea";
+import calculateVisibleTiles from "./utils/calculateVisibleTiles";
+import tilesTransform from "./utils/tilesTransform";
 
 const Gaia: React.FC<TileMapProps> = ({
   enableCache = false,
@@ -213,7 +214,7 @@ const Gaia: React.FC<TileMapProps> = ({
         zoomLevel: zoomLevel.current,
         viewPort: { x: viewport.current.x, y: viewport.current.y },
         type: "DragMove",
-        visibleIndexList: calculateImageVisibleArea(
+        visibleIndexList: calculateVisibleTiles(
           canvasSize,
           zoomLevel.current,
           viewport.current,
@@ -269,19 +270,31 @@ const Gaia: React.FC<TileMapProps> = ({
 
     viewport.current = newViewPort;
 
+    const visibleIndexList = calculateVisibleTiles(
+      canvasSize,
+      zoomLevel.current,
+      viewport.current,
+      tilesX,
+      tilesY,
+      tileWidth,
+      tileHeight
+    );
+
     handleWheelCallback?.({
       zoomLevel: zoomLevel.current,
       viewPort: { x: viewport.current.x, y: viewport.current.y },
       type: "Wheel",
-      visibleIndexList: calculateImageVisibleArea(
-        canvasSize,
-        zoomLevel.current,
-        viewport.current,
-        tilesX,
-        tilesY,
-        tileWidth,
-        tileHeight
-      ),
+      visibleIndexList:
+        zoomLevel.current < tileSwitchLevel &&
+        zoomLevel.current > 1 / tileSwitchLevel
+          ? visibleIndexList
+          : zoomLevel.current > tileSwitchLevel
+          ? Array.from(
+              tilesTransform(visibleIndexList, true, tileSwitchLevel, tilesX)
+            )
+          : Array.from(
+              tilesTransform(visibleIndexList, false, tileSwitchLevel, tilesX)
+            ),
       curResolution:
         zoomLevel.current < tileSwitchLevel &&
         zoomLevel.current > 1 / tileSwitchLevel
@@ -316,7 +329,7 @@ const Gaia: React.FC<TileMapProps> = ({
       curResolution: curResolution,
       viewPort: viewport.current,
       zoomLevel: zoomLevel.current,
-      visibleIndexList: calculateImageVisibleArea(
+      visibleIndexList: calculateVisibleTiles(
         canvasSize,
         zoomLevel.current,
         viewport.current,

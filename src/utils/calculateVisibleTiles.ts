@@ -1,5 +1,5 @@
 // 计算可视区域的瓦片图index
-const calculateImageVisibleArea = (
+const calculateVisibleTiles = (
   canvasSize: { width: number; height: number },
   zoomLevel: number,
   viewport: { x: number; y: number },
@@ -57,4 +57,4 @@ const calculateImageVisibleArea = (
   return visIndex;
 };
 
-export default calculateImageVisibleArea;
+export default calculateVisibleTiles;
