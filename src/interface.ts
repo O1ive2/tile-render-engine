@@ -11,8 +11,8 @@ export interface TileMapProps {
 }
 
 interface ICanvasSize {
-  width?: number;
-  height?: number;
+  width: number;
+  height: number;
 }
 
 interface ITileConfig {

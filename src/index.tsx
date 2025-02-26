@@ -10,6 +10,7 @@ import { TileMapProps } from "./interface";
 import React from "react";
 import { init } from "./test";
 import "./index.css";
+import calculateImageVisibleArea from "./utils/calculateImageVisibleArea";
 
 const Gaia: React.FC<TileMapProps> = ({
   enableCache = false,
@@ -212,7 +213,15 @@ const Gaia: React.FC<TileMapProps> = ({
         zoomLevel: zoomLevel.current,
         viewPort: { x: viewport.current.x, y: viewport.current.y },
         type: "DragMove",
-        visibleIndexList: calculateImageVisibleArea(),
+        visibleIndexList: calculateImageVisibleArea(
+          canvasSize,
+          zoomLevel.current,
+          viewport.current,
+          tilesX,
+          tilesY,
+          tileWidth,
+          tileHeight
+        ),
         curResolution: curResolution,
       });
     };
@@ -224,57 +233,6 @@ const Gaia: React.FC<TileMapProps> = ({
 
     document.addEventListener("mousemove", onMouseMove);
     document.addEventListener("mouseup", onMouseUp);
-  };
-
-  // 计算可视区域的瓦片图index
-  const calculateImageVisibleArea = () => {
-    const canvasWidth = canvasSize.width as number;
-    const canvasHeight = canvasSize.height as number;
-
-    // 计算每个瓦片的缩放后的尺寸
-    const scaledTileWidth = tileWidth * zoomLevel.current;
-    const scaledMapWidth = scaledTileWidth * tilesX;
-    const scaledTileHeight = tileHeight * zoomLevel.current;
-    const scaledMapHeight = scaledTileHeight * tilesY;
-
-    const startX = viewport.current.x;
-    const startY = viewport.current.y;
-
-    const endX = viewport.current.x + scaledMapWidth;
-    const endY = viewport.current.y + scaledMapHeight;
-
-    const visIndex: number[] = [];
-    let x1: number = 0,
-      y1: number = 0,
-      x2: number = 0,
-      y2: number = 0;
-
-    // 判断瓦片图在canvas内部
-    if (
-      startX <= canvasWidth &&
-      startY <= canvasWidth &&
-      endX >= 0 &&
-      endY >= 0
-    ) {
-      x1 = startX < 0 ? Math.floor(-startX / scaledTileWidth) : 0;
-      y1 = startY < 0 ? Math.floor(-startY / scaledTileHeight) : 0;
-      x2 =
-        endX > canvasWidth
-          ? Math.ceil((canvasWidth - startX) / scaledTileWidth)
-          : tilesX;
-      y2 =
-        endY > canvasHeight
-          ? Math.ceil((canvasHeight - startY) / scaledTileHeight)
-          : tilesY;
-    }
-
-    for (let x = x1; x < x2; x++) {
-      for (let y = y1; y < y2; y++) {
-        visIndex.push(y * tilesX + x);
-      }
-    }
-
-    return visIndex;
   };
 
   const handleWheel: React.WheelEventHandler<HTMLCanvasElement> = (event) => {
@@ -312,11 +270,25 @@ const Gaia: React.FC<TileMapProps> = ({
     viewport.current = newViewPort;
 
     handleWheelCallback?.({
-      zoomLevel: newZoomLevel,
-      viewPort: { x: newViewportX, y: newViewportY },
+      zoomLevel: zoomLevel.current,
+      viewPort: { x: viewport.current.x, y: viewport.current.y },
       type: "Wheel",
-      visibleIndexList: calculateImageVisibleArea(),
-      curResolution: curResolution,
+      visibleIndexList: calculateImageVisibleArea(
+        canvasSize,
+        zoomLevel.current,
+        viewport.current,
+        tilesX,
+        tilesY,
+        tileWidth,
+        tileHeight
+      ),
+      curResolution:
+        zoomLevel.current < tileSwitchLevel &&
+        zoomLevel.current > 1 / tileSwitchLevel
+          ? curResolution
+          : zoomLevel.current > tileSwitchLevel
+          ? Math.min(resolutionNumber - 1, curResolution + 1)
+          : Math.max(0, curResolution - 1),
     });
   };
 
@@ -344,7 +316,15 @@ const Gaia: React.FC<TileMapProps> = ({
       curResolution: curResolution,
       viewPort: viewport.current,
       zoomLevel: zoomLevel.current,
-      visibleIndexList: calculateImageVisibleArea(),
+      visibleIndexList: calculateImageVisibleArea(
+        canvasSize,
+        zoomLevel.current,
+        viewport.current,
+        tilesX,
+        tilesY,
+        tileWidth,
+        tileHeight
+      ),
       mouseInfo: {
         x: clickX,
         y: clickY,

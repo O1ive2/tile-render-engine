@@ -66,7 +66,7 @@ const Home = () => {
     <div className="home">
       {data ? (
         <Gaia
-          enableCache={false}
+          enableCache={true}
           tileData={data}
           onDragMove={onDragMove}
           // onTileClick={onTileClick}
