@@ -151,7 +151,7 @@ const Gaia: React.FC<TileMapProps> = ({
       });
     }
     setImgCache(newImgCache);
-  }, [tileData, updateData]);
+  }, [updateData]);
 
   // 依据顺序绘制瓦片图
   const drawTiles = (context: CanvasRenderingContext2D) => {
