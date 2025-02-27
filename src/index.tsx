@@ -27,15 +27,8 @@ const Gaia: React.FC<TileMapProps> = ({
 }) => {
   const [renderFlag, setRenderFlag] = useState<boolean>(true);
   const { tileSwitchLevel = 1, tilesNumPerResolution } = tileConfig;
-  const resolutionNumber = useMemo(() => {
-    return tilesNumPerResolution instanceof Array
-      ? tilesNumPerResolution.length
-      : 1;
-  }, []);
-
   const [tileWidth, setTileWidth] = useState(0);
   const [tileHeight, setTileHeight] = useState(0);
-
   const [tilesX, setTilesX] = useState<number>(
     tilesNumPerResolution instanceof Array
       ? tilesNumPerResolution[0].x
@@ -47,7 +40,6 @@ const Gaia: React.FC<TileMapProps> = ({
       : tilesNumPerResolution.y
   );
   const [curResolution, setCurResolution] = useState<number>(0);
-  const canvasRef = useRef<null | HTMLCanvasElement>(null);
   const [imgCache, setImgCache] = useState<
     Map<
       number,
@@ -59,6 +51,8 @@ const Gaia: React.FC<TileMapProps> = ({
       }
     >
   >(new Map());
+
+  const canvasRef = useRef<null | HTMLCanvasElement>(null);
   const viewport = useRef({
     x: 0,
     y: 0,
@@ -67,6 +61,21 @@ const Gaia: React.FC<TileMapProps> = ({
   const requestRef = useRef<number>(0); // 用于存储请求的 ID
   const lastPosition = useRef<{ x: number; y: number }>({ x: 0, y: 0 }); // 存储上一次的鼠标位置
 
+  const resolutionNumber = useMemo(() => {
+    return tilesNumPerResolution instanceof Array
+      ? tilesNumPerResolution.length
+      : 1;
+  }, []);
+  const updateData = useMemo(() => {
+    return tileData.map((item) => {
+      const { blockBase64Str, index } = item;
+      const img = new Image();
+      img.src = `data:img/png;base64,${blockBase64Str}`;
+      const x = tileWidth * (index % tilesX);
+      const y = tileHeight * Math.floor(index / tilesX);
+      return { img, x, y, index };
+    });
+  }, [tileData, tilesX, tileWidth]);
   const canvas = canvasRef.current;
   const context = canvas?.getContext("2d");
 
@@ -93,17 +102,6 @@ const Gaia: React.FC<TileMapProps> = ({
       y: ((canvasSize.height as number) - fullHeight) / 2,
     };
   }, [tileWidth, tileHeight]);
-
-  const updateData = useMemo(() => {
-    return tileData.map((item) => {
-      const { blockBase64Str, index } = item;
-      const img = new Image();
-      img.src = `data:img/png;base64,${blockBase64Str}`;
-      const x = tileWidth * (index % tilesX);
-      const y = tileHeight * Math.floor(index / tilesX);
-      return { img, x, y, index };
-    });
-  }, [tileData, tilesX, tileWidth]);
 
   // 绘图
   useLayoutEffect(() => {
@@ -311,9 +309,7 @@ const Gaia: React.FC<TileMapProps> = ({
       event.preventDefault();
     };
 
-    canvas.addEventListener("wheel", handleWheelWithPreventDefault, {
-      // passive: false,
-    });
+    canvas.addEventListener("wheel", handleWheelWithPreventDefault);
     return () => {
       canvas?.removeEventListener("wheel", handleWheelWithPreventDefault);
     };
