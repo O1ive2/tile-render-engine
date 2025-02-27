@@ -16,7 +16,7 @@ import tilesTransform from "./utils/tilesTransform";
 const Gaia: React.FC<TileMapProps> = ({
   enableCache = false,
   tileData,
-  onTileClick,
+  handleClick: handleClickCallback,
   handlewheel: handleWheelCallback,
   onDragMove,
   canvasSize = {
@@ -320,7 +320,7 @@ const Gaia: React.FC<TileMapProps> = ({
     const rect = canvasRef.current?.getBoundingClientRect() as DOMRect;
     const clickX = event.clientX - rect.left;
     const clickY = event.clientY - rect.top;
-    onTileClick?.({
+    handleClickCallback?.({
       type: "Click",
       curResolution: curResolution,
       viewPort: viewport.current,
@@ -335,8 +335,14 @@ const Gaia: React.FC<TileMapProps> = ({
         tileHeight
       ),
       mouseInfo: {
-        x: clickX,
-        y: clickY,
+        coordinate: {
+          x: clickX,
+          y: clickY,
+        },
+        coordinateInTile: {
+          x: (clickX - viewport.current.x) / zoomLevel.current,
+          y: (clickY - viewport.current.y) / zoomLevel.current,
+        },
       },
     });
   };

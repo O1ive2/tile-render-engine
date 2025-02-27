@@ -1,11 +1,10 @@
 import ReactDOM from "react-dom/client";
 import Gaia from "./index";
-import React, { useEffect, useRef, useState } from "react";
-import { TileDataProps, TileMapEventInfo } from "./interface";
+import React, { useEffect, useState } from "react";
+import { Location, TileDataProps, TileMapEventInfo } from "./interface";
 
 const Home = () => {
   const [data, setData] = useState<TileDataProps[]>();
-  const level = useRef(1);
   useEffect(() => {
     fetchAllData("/data_4.json");
   }, []);
@@ -39,6 +38,35 @@ const Home = () => {
     }
   };
 
+  const fetchClickData = async (level: number, coordinate: Location) => {
+    try {
+      const res = await (
+        await fetch(`http://192.168.100.140:3000/test`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          // body: JSON.stringify({
+          //   clientX: coordinate.x,
+          //   clientY: coordinate.y,
+          //   level: level,
+          // }),
+        })
+      ).json();
+      // setData(res.blocks);
+    } catch (e) {
+      console.log("error");
+    }
+  };
+
+  const handleClick = (event: TileMapEventInfo) => {
+    console.log("click", event.mouseInfo?.coordinateInTile);
+    fetchClickData(
+      event.curResolution,
+      event.mouseInfo?.coordinateInTile as Location
+    );
+  };
+
   const onDragMove = (event: TileMapEventInfo) => {
     fetchData(
       event.visibleIndexList as number[],
@@ -69,7 +97,7 @@ const Home = () => {
           enableCache={true}
           tileData={data}
           onDragMove={onDragMove}
-          // onTileClick={onTileClick}
+          handleClick={handleClick}
           handlewheel={handlewheel}
           tileConfig={{
             tileSwitchLevel: 4,

@@ -1,7 +1,7 @@
 export interface TileMapProps {
   enableCache?: boolean;
   tileData: TileDataProps[];
-  onTileClick?: (event: TileMapEventInfo) => void;
+  handleClick?: (event: TileMapEventInfo) => void;
   handlewheel?: (event: TileMapEventInfo) => void;
   onDragMove?: (event: TileMapEventInfo) => void;
   // Canvas size,default width 200px,height 200px
@@ -45,5 +45,10 @@ export interface TileMapEventInfo {
   zoomLevel: number;
   visibleIndexList: number[];
   curResolution: number;
-  mouseInfo?: Location;
+  mouseInfo?: IMouseInfo;
+}
+
+export interface IMouseInfo {
+  coordinate: Location;
+  coordinateInTile: Location;
 }
