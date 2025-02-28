@@ -12,6 +12,7 @@ import { init } from "./test";
 import "./index.css";
 import calculateVisibleTiles from "./utils/calculateVisibleTiles";
 import tilesTransform from "./utils/tilesTransform";
+import { useTileImageCache } from "./hooks/renderHooks";
 
 const Gaia: React.FC<TileMapProps> = ({
   enableCache = false,
@@ -40,17 +41,17 @@ const Gaia: React.FC<TileMapProps> = ({
       : tilesNumPerResolution.y
   );
   const [curResolution, setCurResolution] = useState<number>(0);
-  const [imgCache, setImgCache] = useState<
-    Map<
-      number,
-      {
-        img: HTMLImageElement;
-        x: number;
-        y: number;
-        index: number;
-      }
-    >
-  >(new Map());
+  // const [imgCache, setImgCache] = useState<
+  //   Map<
+  //     number,
+  //     {
+  //       img: HTMLImageElement;
+  //       x: number;
+  //       y: number;
+  //       index: number;
+  //     }
+  //   >
+  // >(new Map());
 
   const canvasRef = useRef<null | HTMLCanvasElement>(null);
   const viewport = useRef({
@@ -78,6 +79,16 @@ const Gaia: React.FC<TileMapProps> = ({
   }, [tileData, tilesX, tileWidth]);
   const canvas = canvasRef.current;
   const context = canvas?.getContext("2d");
+
+  const { imgCache } = useTileImageCache(
+    enableCache,
+    tileSwitchLevel,
+    curResolution,
+    resolutionNumber,
+    zoomLevel,
+    setCurResolution,
+    updateData
+  );
 
   // 计算瓦片图的宽高
   useLayoutEffect(() => {
@@ -117,41 +128,6 @@ const Gaia: React.FC<TileMapProps> = ({
     tilesNumPerResolution instanceof Array &&
       setTilesY(tilesNumPerResolution[curResolution].y);
   }, [curResolution]);
-
-  useLayoutEffect(() => {
-    let newImgCache: Map<
-      number,
-      { img: HTMLImageElement; x: number; y: number; index: number }
-    >;
-    // 在放大到切换瓦片图的临界level时的处理
-    if (
-      zoomLevel.current > tileSwitchLevel &&
-      curResolution < resolutionNumber - 1
-    ) {
-      // 在分辨率切换的时候，清空缓存
-      newImgCache = new Map();
-      // 修复瓦片图扩张切换带来的偏移值,并且防止无限制放大
-      zoomLevel.current = zoomLevel.current / tileSwitchLevel;
-      setCurResolution((cur) => cur + 1);
-    } else if (zoomLevel.current < 1 / tileSwitchLevel && curResolution > 0) {
-      // 在分辨率切换的时候，清空缓存
-      newImgCache = new Map();
-      // 在缩小到切换瓦片图的临界level时，修复瓦片图缩减切换带来的偏移值
-      zoomLevel.current = zoomLevel.current / (1 / tileSwitchLevel);
-      setCurResolution((cur) => cur - 1);
-    } else {
-      if (enableCache) {
-        newImgCache = new Map(imgCache);
-      } else {
-        newImgCache = new Map();
-      }
-
-      updateData.forEach((img) => {
-        newImgCache.set(img.index, img);
-      });
-    }
-    setImgCache(newImgCache);
-  }, [updateData]);
 
   // 依据顺序绘制瓦片图
   const drawTiles = (context: CanvasRenderingContext2D) => {

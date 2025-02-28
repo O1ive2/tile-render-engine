@@ -41,19 +41,19 @@ const Home = () => {
   const fetchClickData = async (level: number, coordinate: Location) => {
     try {
       const res = await (
-        await fetch(`http://192.168.100.140:3000/test`, {
+        await fetch(`http://192.168.100.140:8080/handleClick`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          // body: JSON.stringify({
-          //   clientX: coordinate.x,
-          //   clientY: coordinate.y,
-          //   level: level,
-          // }),
+          body: JSON.stringify({
+            clientX: coordinate.x,
+            clientY: coordinate.y,
+            level: level,
+          }),
         })
       ).json();
-      // setData(res.blocks);
+      setData(res.blocks);
     } catch (e) {
       console.log("error");
     }
