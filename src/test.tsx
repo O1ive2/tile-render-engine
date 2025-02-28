@@ -6,22 +6,13 @@ import { Location, TileDataProps, TileMapEventInfo } from "./interface";
 const Home = () => {
   const [data, setData] = useState<TileDataProps[]>();
   useEffect(() => {
-    fetchAllData("/data_4.json");
+    fetchData([0, 1, 2, 3], 1);
   }, []);
-
-  const fetchAllData = async (path: string) => {
-    try {
-      const res = await (await fetch(path)).json();
-      setData(res.blocks);
-    } catch (e) {
-      console.log("error");
-    }
-  };
 
   const fetchData = async (indexList: number[], level: number) => {
     try {
       const res = await (
-        await fetch(`http://localhost:3008/getBlocks`, {
+        await fetch(`http://192.168.100.140:8080/initialRender`, {
           method: "post",
           headers: {
             "Content-Type": "application/json",
@@ -62,7 +53,7 @@ const Home = () => {
   const handleClick = (event: TileMapEventInfo) => {
     console.log("click", event.mouseInfo?.coordinateInTile);
     fetchClickData(
-      event.curResolution,
+      event.curResolution + 1,
       event.mouseInfo?.coordinateInTile as Location
     );
   };
@@ -70,7 +61,7 @@ const Home = () => {
   const onDragMove = (event: TileMapEventInfo) => {
     fetchData(
       event.visibleIndexList as number[],
-      event.curResolution as number
+      (event.curResolution as number) + 1
     );
   };
 
@@ -78,7 +69,7 @@ const Home = () => {
     console.log("wheelzoomlevel", event);
     fetchData(
       event.visibleIndexList as number[],
-      event.curResolution as number
+      (event.curResolution as number) + 1
     );
 
     // if (event.curResolution === 0) {
