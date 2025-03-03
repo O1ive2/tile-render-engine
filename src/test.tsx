@@ -6,13 +6,13 @@ import { Location, TileDataProps, TileMapEventInfo } from "./interface";
 const Home = () => {
   const [data, setData] = useState<TileDataProps[]>();
   useEffect(() => {
-    fetchData([0, 1, 2, 3], 1);
+    fetchData([0, 1, 2, 3], 0);
   }, []);
 
   const fetchData = async (indexList: number[], level: number) => {
     try {
       const res = await (
-        await fetch(`http://192.168.100.140:8080/initialRender`, {
+        await fetch(`http://localhost:3008/initialRender`, {
           method: "post",
           headers: {
             "Content-Type": "application/json",
@@ -32,7 +32,7 @@ const Home = () => {
   const fetchClickData = async (level: number, coordinate: Location) => {
     try {
       const res = await (
-        await fetch(`http://192.168.100.140:8080/handleClick`, {
+        await fetch(`http://localhost:3008/handleClick`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -53,7 +53,7 @@ const Home = () => {
   const handleClick = (event: TileMapEventInfo) => {
     console.log("click", event.mouseInfo?.coordinateInTile);
     fetchClickData(
-      event.curResolution + 1,
+      event.curResolution,
       event.mouseInfo?.coordinateInTile as Location
     );
   };
@@ -61,7 +61,7 @@ const Home = () => {
   const onDragMove = (event: TileMapEventInfo) => {
     fetchData(
       event.visibleIndexList as number[],
-      (event.curResolution as number) + 1
+      event.curResolution as number
     );
   };
 
@@ -69,7 +69,7 @@ const Home = () => {
     console.log("wheelzoomlevel", event);
     fetchData(
       event.visibleIndexList as number[],
-      (event.curResolution as number) + 1
+      event.curResolution as number
     );
 
     // if (event.curResolution === 0) {
@@ -81,6 +81,13 @@ const Home = () => {
     // }
   };
 
+  const handleRightClick = (event: TileMapEventInfo) => {
+    console.log("rightclick", event);
+  };
+  const handleDoubleClick = (event: TileMapEventInfo) => {
+    console.log("double", event);
+  };
+
   return (
     <div className="home">
       {data ? (
@@ -90,6 +97,8 @@ const Home = () => {
           onDragMove={onDragMove}
           handleClick={handleClick}
           handlewheel={handlewheel}
+          handleRightClick={handleRightClick}
+          handleDoubleClick={handleDoubleClick}
           tileConfig={{
             tileSwitchLevel: 4,
             tilesNumPerResolution: [

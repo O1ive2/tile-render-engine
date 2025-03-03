@@ -4,13 +4,15 @@ export interface TileMapProps {
   handleClick?: (event: TileMapEventInfo) => void;
   handlewheel?: (event: TileMapEventInfo) => void;
   onDragMove?: (event: TileMapEventInfo) => void;
+  handleRightClick?: (event: TileMapEventInfo) => void;
+  handleDoubleClick?: (event: TileMapEventInfo) => void;
   // Canvas size,default width 200px,height 200px
   canvasSize?: ICanvasSize;
   // resolutionNumber: number;
   tileConfig: ITileConfig;
 }
 
-interface ICanvasSize {
+export interface ICanvasSize {
   width: number;
   height: number;
 }
@@ -22,7 +24,7 @@ interface ITileConfig {
   tilesNumPerResolution: ITilesNum[] | ITilesNum;
 }
 
-interface ITilesNum {
+export interface ITilesNum {
   // The number of tiles on the x-axis
   x: number;
   // The number of tiles on the y-axis
@@ -40,12 +42,20 @@ export interface Location {
 }
 
 export interface TileMapEventInfo {
-  type: "Wheel" | "Click" | "DragMove";
+  type: EventType;
   viewPort: Location;
   zoomLevel: number;
   visibleIndexList: number[];
   curResolution: number;
   mouseInfo?: IMouseInfo;
+}
+
+export enum EventType {
+  Wheel = "Wheel",
+  Click = "Click",
+  DragMove = "DragMove",
+  RightClick = "RightClick",
+  DoubleClick = "DoubleClick",
 }
 
 export interface IMouseInfo {

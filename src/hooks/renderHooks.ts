@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useState } from "react";
-import { TileDataProps } from "../interface";
+import { ICanvasSize, ITilesNum, TileDataProps } from "../interface";
 
 export function useTileImageCache(
   enableCache: boolean,
@@ -57,8 +57,71 @@ export function useTileImageCache(
   return { imgCache, setImgCache };
 }
 
-export function useTest(tileData: TileDataProps[]) {
+export function useGaiaInit(
+  tileData: TileDataProps[],
+  viewport: React.RefObject<{
+    x: number;
+    y: number;
+  }>,
+  tilesNumPerResolution: ITilesNum | ITilesNum[],
+  canvasSize: ICanvasSize,
+  canvasRef: React.RefObject<HTMLCanvasElement | null>
+) {
+  const [tileWidth, setTileWidth] = useState(0);
+  const [tileHeight, setTileHeight] = useState(0);
+  const [tilesX, setTilesX] = useState<number>(
+    tilesNumPerResolution instanceof Array
+      ? tilesNumPerResolution[0].x
+      : tilesNumPerResolution.x
+  );
+  const [tilesY, setTilesY] = useState<number>(
+    tilesNumPerResolution instanceof Array
+      ? tilesNumPerResolution[0].y
+      : tilesNumPerResolution.y
+  );
+  // 计算单个瓦片图宽高
+  useLayoutEffect(() => {
+    if (tileData[0]) {
+      const img = new Image();
+      img.src = `data:image/png;base64,${tileData[0].blockBase64Str}`;
+
+      img.onload = () => {
+        setTileHeight(img.height);
+        setTileWidth(img.width);
+      };
+    }
+  }, []);
+
+  // 初次渲染将瓦片图移动到视图最中央
   useEffect(() => {
-    console.log(tileData, "hooks test");
-  }, [tileData]);
+    const fullWidth = tilesX * tileWidth;
+    const fullHeight = tilesY * tileHeight;
+
+    viewport.current = {
+      x: ((canvasSize.width as number) - fullWidth) / 2,
+      y: ((canvasSize.height as number) - fullHeight) / 2,
+    };
+  }, [tileWidth, tileHeight]);
+
+  // 监听canvas的wheel事件，防止默认行为
+  useEffect(() => {
+    const canvas = canvasRef.current as HTMLCanvasElement;
+    const handleWheelWithPreventDefault = (event: any) => {
+      event.preventDefault();
+    };
+
+    canvas.addEventListener("wheel", handleWheelWithPreventDefault);
+    return () => {
+      canvas?.removeEventListener("wheel", handleWheelWithPreventDefault);
+    };
+  }, []);
+
+  return {
+    tileWidth,
+    tileHeight,
+    tilesX,
+    setTilesX,
+    tilesY,
+    setTilesY,
+  };
 }

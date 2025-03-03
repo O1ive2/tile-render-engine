@@ -6,18 +6,21 @@ import {
   useLayoutEffect,
   memo,
 } from "react";
-import { TileMapProps } from "./interface";
+import { EventType, TileMapProps } from "./interface";
 import React from "react";
 import "./index.css";
 import calculateVisibleTiles from "./utils/calculateVisibleTiles";
 import tilesTransform from "./utils/tilesTransform";
-import { useTileImageCache } from "./hooks/renderHooks";
+import { useGaiaInit, useTileImageCache } from "./hooks/renderHooks";
+import { init } from "./test";
 
 const Gaia: React.FC<TileMapProps> = ({
   enableCache = false,
   tileData,
   handleClick: handleClickCallback,
   handlewheel: handleWheelCallback,
+  handleRightClick: handleRightClickCallback,
+  handleDoubleClick: handleDoubleClickCallback,
   onDragMove,
   canvasSize = {
     width: 200,
@@ -27,31 +30,7 @@ const Gaia: React.FC<TileMapProps> = ({
 }) => {
   const [renderFlag, setRenderFlag] = useState<boolean>(true);
   const { tileSwitchLevel = 1, tilesNumPerResolution } = tileConfig;
-  const [tileWidth, setTileWidth] = useState(0);
-  const [tileHeight, setTileHeight] = useState(0);
-  const [tilesX, setTilesX] = useState<number>(
-    tilesNumPerResolution instanceof Array
-      ? tilesNumPerResolution[0].x
-      : tilesNumPerResolution.x
-  );
-  const [tilesY, setTilesY] = useState<number>(
-    tilesNumPerResolution instanceof Array
-      ? tilesNumPerResolution[0].y
-      : tilesNumPerResolution.y
-  );
   const [curResolution, setCurResolution] = useState<number>(0);
-  // const [imgCache, setImgCache] = useState<
-  //   Map<
-  //     number,
-  //     {
-  //       img: HTMLImageElement;
-  //       x: number;
-  //       y: number;
-  //       index: number;
-  //     }
-  //   >
-  // >(new Map());
-
   const canvasRef = useRef<null | HTMLCanvasElement>(null);
   const viewport = useRef({
     x: 0,
@@ -66,6 +45,16 @@ const Gaia: React.FC<TileMapProps> = ({
       ? tilesNumPerResolution.length
       : 1;
   }, []);
+
+  const { tileWidth, tileHeight, tilesX, tilesY, setTilesX, setTilesY } =
+    useGaiaInit(
+      tileData,
+      viewport,
+      tilesNumPerResolution,
+      canvasSize,
+      canvasRef
+    );
+
   const updateData = useMemo(() => {
     return tileData.map((item) => {
       const { blockBase64Str, index } = item;
@@ -88,30 +77,6 @@ const Gaia: React.FC<TileMapProps> = ({
     setCurResolution,
     updateData
   );
-
-  // 计算瓦片图的宽高
-  useLayoutEffect(() => {
-    if (tileData[0]) {
-      const img = new Image();
-      img.src = `data:image/png;base64,${tileData[0].blockBase64Str}`;
-
-      img.onload = () => {
-        setTileHeight(img.height);
-        setTileWidth(img.width);
-      };
-    }
-  }, []);
-
-  // 计算初始位置
-  useEffect(() => {
-    const fullWidth = tilesX * tileWidth;
-    const fullHeight = tilesY * tileHeight;
-
-    viewport.current = {
-      x: ((canvasSize.width as number) - fullWidth) / 2,
-      y: ((canvasSize.height as number) - fullHeight) / 2,
-    };
-  }, [tileWidth, tileHeight]);
 
   // 绘图
   useLayoutEffect(() => {
@@ -186,7 +151,7 @@ const Gaia: React.FC<TileMapProps> = ({
       onDragMove?.({
         zoomLevel: zoomLevel.current,
         viewPort: { x: viewport.current.x, y: viewport.current.y },
-        type: "DragMove",
+        type: EventType.DragMove,
         visibleIndexList: calculateVisibleTiles(
           canvasSize,
           zoomLevel.current,
@@ -256,7 +221,7 @@ const Gaia: React.FC<TileMapProps> = ({
     handleWheelCallback?.({
       zoomLevel: zoomLevel.current,
       viewPort: { x: viewport.current.x, y: viewport.current.y },
-      type: "Wheel",
+      type: EventType.Wheel,
       visibleIndexList:
         zoomLevel.current < tileSwitchLevel &&
         zoomLevel.current > 1 / tileSwitchLevel
@@ -278,48 +243,56 @@ const Gaia: React.FC<TileMapProps> = ({
     });
   };
 
-  useEffect(() => {
-    const canvas = canvasRef.current as HTMLCanvasElement;
-    const handleWheelWithPreventDefault = (event: any) => {
+  const handleCustomClick: (
+    type: EventType
+  ) => React.MouseEventHandler<HTMLCanvasElement> = (type: EventType) => {
+    return (event) => {
       event.preventDefault();
-    };
+      setRenderFlag((f) => !f);
+      const rect = canvasRef.current?.getBoundingClientRect() as DOMRect;
+      const clickX = event.clientX - rect.left;
+      const clickY = event.clientY - rect.top;
 
-    canvas.addEventListener("wheel", handleWheelWithPreventDefault);
-    return () => {
-      canvas?.removeEventListener("wheel", handleWheelWithPreventDefault);
-    };
-  }, []);
+      let clickCallback;
 
-  const handleClick: React.MouseEventHandler<HTMLCanvasElement> = (event) => {
-    setRenderFlag((f) => !f);
-    const rect = canvasRef.current?.getBoundingClientRect() as DOMRect;
-    const clickX = event.clientX - rect.left;
-    const clickY = event.clientY - rect.top;
-    handleClickCallback?.({
-      type: "Click",
-      curResolution: curResolution,
-      viewPort: viewport.current,
-      zoomLevel: zoomLevel.current,
-      visibleIndexList: calculateVisibleTiles(
-        canvasSize,
-        zoomLevel.current,
-        viewport.current,
-        tilesX,
-        tilesY,
-        tileWidth,
-        tileHeight
-      ),
-      mouseInfo: {
-        coordinate: {
-          x: clickX,
-          y: clickY,
+      switch (type) {
+        case EventType.Click:
+          clickCallback = handleClickCallback;
+          break;
+        case EventType.RightClick:
+          clickCallback = handleRightClickCallback;
+          break;
+        case EventType.DoubleClick:
+          clickCallback = handleDoubleClickCallback;
+          break;
+      }
+
+      clickCallback?.({
+        type: type,
+        curResolution: curResolution,
+        viewPort: viewport.current,
+        zoomLevel: zoomLevel.current,
+        visibleIndexList: calculateVisibleTiles(
+          canvasSize,
+          zoomLevel.current,
+          viewport.current,
+          tilesX,
+          tilesY,
+          tileWidth,
+          tileHeight
+        ),
+        mouseInfo: {
+          coordinate: {
+            x: clickX,
+            y: clickY,
+          },
+          coordinateInTile: {
+            x: (clickX - viewport.current.x) / zoomLevel.current,
+            y: (clickY - viewport.current.y) / zoomLevel.current,
+          },
         },
-        coordinateInTile: {
-          x: (clickX - viewport.current.x) / zoomLevel.current,
-          y: (clickY - viewport.current.y) / zoomLevel.current,
-        },
-      },
-    });
+      });
+    };
   };
 
   return (
@@ -330,9 +303,13 @@ const Gaia: React.FC<TileMapProps> = ({
       height={canvasSize.height}
       onWheel={handleWheel}
       onMouseDown={handleMouseDown}
-      onClick={handleClick}
+      onContextMenu={handleCustomClick(EventType.RightClick)}
+      onClick={handleCustomClick(EventType.Click)}
+      onDoubleClick={handleCustomClick(EventType.DoubleClick)}
     />
   );
 };
+
+init();
 
 export default memo(Gaia);
