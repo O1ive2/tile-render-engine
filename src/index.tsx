@@ -8,7 +8,6 @@ import {
 } from "react";
 import { TileMapProps } from "./interface";
 import React from "react";
-import { init } from "./test";
 import "./index.css";
 import calculateVisibleTiles from "./utils/calculateVisibleTiles";
 import tilesTransform from "./utils/tilesTransform";
