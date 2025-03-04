@@ -12,7 +12,6 @@ import "./index.css";
 import calculateVisibleTiles from "./utils/calculateVisibleTiles";
 import tilesTransform from "./utils/tilesTransform";
 import { useGaiaInit, useTileImageCache } from "./hooks/renderHooks";
-import { init } from "./test";
 
 const Gaia: React.FC<TileMapProps> = ({
   enableCache = false,
@@ -36,6 +35,7 @@ const Gaia: React.FC<TileMapProps> = ({
     x: 0,
     y: 0,
   });
+  const clickTimer = useRef<NodeJS.Timeout>(null);
   const zoomLevel = useRef(1);
   const requestRef = useRef<number>(0); // 用于存储请求的 ID
   const lastPosition = useRef<{ x: number; y: number }>({ x: 0, y: 0 }); // 存储上一次的鼠标位置
@@ -265,33 +265,71 @@ const Gaia: React.FC<TileMapProps> = ({
         case EventType.DoubleClick:
           clickCallback = handleDoubleClickCallback;
           break;
+        default:
+          clickCallback = handleClickCallback;
+          break;
       }
 
-      clickCallback?.({
-        type: type,
-        curResolution: curResolution,
-        viewPort: viewport.current,
-        zoomLevel: zoomLevel.current,
-        visibleIndexList: calculateVisibleTiles(
-          canvasSize,
-          zoomLevel.current,
-          viewport.current,
-          tilesX,
-          tilesY,
-          tileWidth,
-          tileHeight
-        ),
-        mouseInfo: {
-          coordinate: {
-            x: clickX,
-            y: clickY,
+      if (type === EventType.Click) {
+        if (!clickTimer.current) {
+          clickTimer.current = setTimeout(() => {
+            clickCallback?.({
+              type: type,
+              curResolution: curResolution,
+              viewPort: viewport.current,
+              zoomLevel: zoomLevel.current,
+              visibleIndexList: calculateVisibleTiles(
+                canvasSize,
+                zoomLevel.current,
+                viewport.current,
+                tilesX,
+                tilesY,
+                tileWidth,
+                tileHeight
+              ),
+              mouseInfo: {
+                coordinate: {
+                  x: clickX,
+                  y: clickY,
+                },
+                coordinateInTile: {
+                  x: (clickX - viewport.current.x) / zoomLevel.current,
+                  y: (clickY - viewport.current.y) / zoomLevel.current,
+                },
+              },
+            });
+            clickTimer.current = null;
+          }, 200);
+        }
+      } else {
+        clickTimer.current && clearTimeout(clickTimer.current);
+        clickTimer.current = null;
+        clickCallback?.({
+          type: type,
+          curResolution: curResolution,
+          viewPort: viewport.current,
+          zoomLevel: zoomLevel.current,
+          visibleIndexList: calculateVisibleTiles(
+            canvasSize,
+            zoomLevel.current,
+            viewport.current,
+            tilesX,
+            tilesY,
+            tileWidth,
+            tileHeight
+          ),
+          mouseInfo: {
+            coordinate: {
+              x: clickX,
+              y: clickY,
+            },
+            coordinateInTile: {
+              x: (clickX - viewport.current.x) / zoomLevel.current,
+              y: (clickY - viewport.current.y) / zoomLevel.current,
+            },
           },
-          coordinateInTile: {
-            x: (clickX - viewport.current.x) / zoomLevel.current,
-            y: (clickY - viewport.current.y) / zoomLevel.current,
-          },
-        },
-      });
+        });
+      }
     };
   };
 
@@ -309,7 +347,5 @@ const Gaia: React.FC<TileMapProps> = ({
     />
   );
 };
-
-init();
 
 export default memo(Gaia);

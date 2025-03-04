@@ -45,9 +45,7 @@ const Home = () => {
         })
       ).json();
       setData(res.blocks);
-    } catch (e) {
-      console.log("error");
-    }
+    } catch (e) {}
   };
 
   const handleClick = (event: TileMapEventInfo) => {
