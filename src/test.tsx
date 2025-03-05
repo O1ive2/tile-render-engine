@@ -32,7 +32,7 @@ const Home = () => {
   const fetchClickData = async (level: number, coordinate: Location) => {
     try {
       const res = await (
-        await fetch(`http://localhost:3008/handleClick`, {
+        await fetch(`http://192.168.100.195:8080/handleClick`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -57,6 +57,7 @@ const Home = () => {
   };
 
   const onDragMove = (event: TileMapEventInfo) => {
+    console.log("dragmove", event);
     fetchData(
       event.visibleIndexList as number[],
       event.curResolution as number
@@ -69,14 +70,6 @@ const Home = () => {
       event.visibleIndexList as number[],
       event.curResolution as number
     );
-
-    // if (event.curResolution === 0) {
-    //   fetchAllData("/data_4.json");
-    // } else if (event.curResolution === 1) {
-    //   fetchAllData("/data_64.json");
-    // } else {
-    //   fetchAllData("/data_1024.json");
-    // }
   };
 
   const handleRightClick = (event: TileMapEventInfo) => {

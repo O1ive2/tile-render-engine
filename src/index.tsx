@@ -12,6 +12,7 @@ import "./index.css";
 import calculateVisibleTiles from "./utils/calculateVisibleTiles";
 import tilesTransform from "./utils/tilesTransform";
 import { useGaiaInit, useTileImageCache } from "./hooks/renderHooks";
+import { init } from "./test";
 
 const Gaia: React.FC<TileMapProps> = ({
   enableCache = false,
@@ -37,9 +38,8 @@ const Gaia: React.FC<TileMapProps> = ({
   });
   const clickTimer = useRef<NodeJS.Timeout>(null);
   const zoomLevel = useRef(1);
-  const requestRef = useRef<number>(0); // 用于存储请求的 ID
-  const lastPosition = useRef<{ x: number; y: number }>({ x: 0, y: 0 }); // 存储上一次的鼠标位置
-
+  // 存储上一次的鼠标位置
+  const lastPosition = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const resolutionNumber = useMemo(() => {
     return tilesNumPerResolution instanceof Array
       ? tilesNumPerResolution.length
@@ -121,6 +121,8 @@ const Gaia: React.FC<TileMapProps> = ({
     });
   };
 
+  const dragMoveTimer = useRef<NodeJS.Timeout>(null);
+
   const handleMouseDown: React.MouseEventHandler<HTMLCanvasElement> = (
     event
   ) => {
@@ -136,33 +138,34 @@ const Gaia: React.FC<TileMapProps> = ({
       const dx = moveEvent.clientX - lastPosition.current.x;
       const dy = moveEvent.clientY - lastPosition.current.y;
 
-      if (requestRef.current) {
-        cancelAnimationFrame(requestRef.current);
+      viewport.current = {
+        x: viewport.current.x + dx,
+        y: viewport.current.y + dy,
+      };
+
+      lastPosition.current = { x: moveEvent.clientX, y: moveEvent.clientY };
+
+      // 防止频繁触发
+      if (!dragMoveTimer.current) {
+        dragMoveTimer.current = setTimeout(() => {
+          onDragMove?.({
+            zoomLevel: zoomLevel.current,
+            viewPort: { x: viewport.current.x, y: viewport.current.y },
+            type: EventType.DragMove,
+            visibleIndexList: calculateVisibleTiles(
+              canvasSize,
+              zoomLevel.current,
+              viewport.current,
+              tilesX,
+              tilesY,
+              tileWidth,
+              tileHeight
+            ),
+            curResolution: curResolution,
+          });
+          dragMoveTimer.current = null;
+        }, 100);
       }
-
-      requestRef.current = requestAnimationFrame(() => {
-        viewport.current = {
-          x: viewport.current.x + dx,
-          y: viewport.current.y + dy,
-        };
-
-        lastPosition.current = { x: moveEvent.clientX, y: moveEvent.clientY };
-      });
-      onDragMove?.({
-        zoomLevel: zoomLevel.current,
-        viewPort: { x: viewport.current.x, y: viewport.current.y },
-        type: EventType.DragMove,
-        visibleIndexList: calculateVisibleTiles(
-          canvasSize,
-          zoomLevel.current,
-          viewport.current,
-          tilesX,
-          tilesY,
-          tileWidth,
-          tileHeight
-        ),
-        curResolution: curResolution,
-      });
     };
 
     const onMouseUp = () => {
@@ -347,5 +350,7 @@ const Gaia: React.FC<TileMapProps> = ({
     />
   );
 };
+
+init();
 
 export default memo(Gaia);
