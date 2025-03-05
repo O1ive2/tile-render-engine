@@ -8,7 +8,6 @@ export interface TileMapProps {
   handleDoubleClick?: (event: TileMapEventInfo) => void;
   // Canvas size,default width 200px,height 200px
   canvasSize?: ICanvasSize;
-  // resolutionNumber: number;
   tileConfig: ITileConfig;
 }
 

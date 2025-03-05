@@ -36,6 +36,7 @@ const Gaia: React.FC<TileMapProps> = ({
     x: 0,
     y: 0,
   });
+  const isDragging = useRef<boolean>(false);
   const clickTimer = useRef<NodeJS.Timeout>(null);
   const dragMoveTimer = useRef<NodeJS.Timeout>(null);
   const wheelTimer = useRef<NodeJS.Timeout>(null);
@@ -99,7 +100,6 @@ const Gaia: React.FC<TileMapProps> = ({
   // 依据顺序绘制瓦片图
   const drawTiles = (context: CanvasRenderingContext2D) => {
     context.clearRect(0, 0, context.canvas.width, context.canvas.height);
-    console.log("drawTiles", imgCache);
     imgCache?.forEach((item) => {
       const { x, y, img } = item;
 
@@ -137,6 +137,7 @@ const Gaia: React.FC<TileMapProps> = ({
     // 使用 requestAnimationFrame 延迟更新视口
     const onMouseMove = (moveEvent: MouseEvent) => {
       setRenderFlag((f) => !f);
+      isDragging.current = true;
       const dx = moveEvent.clientX - lastPosition.current.x;
       const dy = moveEvent.clientY - lastPosition.current.y;
 
@@ -290,66 +291,70 @@ const Gaia: React.FC<TileMapProps> = ({
           break;
       }
 
-      if (type === EventType.Click) {
-        if (!clickTimer.current) {
-          clickTimer.current = setTimeout(() => {
-            clickCallback?.({
-              type: type,
-              curResolution: curResolution,
-              viewPort: viewport.current,
-              zoomLevel: zoomLevel.current,
-              visibleIndexList: calculateVisibleTiles(
-                canvasSize,
-                zoomLevel.current,
-                viewport.current,
-                tilesX,
-                tilesY,
-                tileWidth,
-                tileHeight
-              ),
-              mouseInfo: {
-                coordinate: {
-                  x: clickX,
-                  y: clickY,
+      // 移动完成后不触发点击事件
+      if (!isDragging.current) {
+        if (type === EventType.Click) {
+          if (!clickTimer.current) {
+            clickTimer.current = setTimeout(() => {
+              clickCallback?.({
+                type: type,
+                curResolution: curResolution,
+                viewPort: viewport.current,
+                zoomLevel: zoomLevel.current,
+                visibleIndexList: calculateVisibleTiles(
+                  canvasSize,
+                  zoomLevel.current,
+                  viewport.current,
+                  tilesX,
+                  tilesY,
+                  tileWidth,
+                  tileHeight
+                ),
+                mouseInfo: {
+                  coordinate: {
+                    x: clickX,
+                    y: clickY,
+                  },
+                  coordinateInTile: {
+                    x: (clickX - viewport.current.x) / zoomLevel.current,
+                    y: (clickY - viewport.current.y) / zoomLevel.current,
+                  },
                 },
-                coordinateInTile: {
-                  x: (clickX - viewport.current.x) / zoomLevel.current,
-                  y: (clickY - viewport.current.y) / zoomLevel.current,
-                },
+              });
+              clickTimer.current = null;
+            }, 200);
+          }
+        } else {
+          clickTimer.current && clearTimeout(clickTimer.current);
+          clickTimer.current = null;
+          clickCallback?.({
+            type: type,
+            curResolution: curResolution,
+            viewPort: viewport.current,
+            zoomLevel: zoomLevel.current,
+            visibleIndexList: calculateVisibleTiles(
+              canvasSize,
+              zoomLevel.current,
+              viewport.current,
+              tilesX,
+              tilesY,
+              tileWidth,
+              tileHeight
+            ),
+            mouseInfo: {
+              coordinate: {
+                x: clickX,
+                y: clickY,
               },
-            });
-            clickTimer.current = null;
-          }, 200);
+              coordinateInTile: {
+                x: (clickX - viewport.current.x) / zoomLevel.current,
+                y: (clickY - viewport.current.y) / zoomLevel.current,
+              },
+            },
+          });
         }
-      } else {
-        clickTimer.current && clearTimeout(clickTimer.current);
-        clickTimer.current = null;
-        clickCallback?.({
-          type: type,
-          curResolution: curResolution,
-          viewPort: viewport.current,
-          zoomLevel: zoomLevel.current,
-          visibleIndexList: calculateVisibleTiles(
-            canvasSize,
-            zoomLevel.current,
-            viewport.current,
-            tilesX,
-            tilesY,
-            tileWidth,
-            tileHeight
-          ),
-          mouseInfo: {
-            coordinate: {
-              x: clickX,
-              y: clickY,
-            },
-            coordinateInTile: {
-              x: (clickX - viewport.current.x) / zoomLevel.current,
-              y: (clickY - viewport.current.y) / zoomLevel.current,
-            },
-          },
-        });
       }
+      isDragging.current = false;
     };
   };
 
