@@ -37,6 +37,8 @@ const Gaia: React.FC<TileMapProps> = ({
     y: 0,
   });
   const clickTimer = useRef<NodeJS.Timeout>(null);
+  const dragMoveTimer = useRef<NodeJS.Timeout>(null);
+  const wheelTimer = useRef<NodeJS.Timeout>(null);
   const zoomLevel = useRef(1);
   // 存储上一次的鼠标位置
   const lastPosition = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -120,8 +122,6 @@ const Gaia: React.FC<TileMapProps> = ({
       }
     });
   };
-
-  const dragMoveTimer = useRef<NodeJS.Timeout>(null);
 
   const handleMouseDown: React.MouseEventHandler<HTMLCanvasElement> = (
     event
@@ -221,29 +221,44 @@ const Gaia: React.FC<TileMapProps> = ({
       tileHeight
     );
 
-    handleWheelCallback?.({
-      zoomLevel: zoomLevel.current,
-      viewPort: { x: viewport.current.x, y: viewport.current.y },
-      type: EventType.Wheel,
-      visibleIndexList:
-        zoomLevel.current < tileSwitchLevel &&
-        zoomLevel.current > 1 / tileSwitchLevel
-          ? visibleIndexList
-          : zoomLevel.current > tileSwitchLevel
-          ? Array.from(
-              tilesTransform(visibleIndexList, true, tileSwitchLevel, tilesX)
-            )
-          : Array.from(
-              tilesTransform(visibleIndexList, false, tileSwitchLevel, tilesX)
-            ),
-      curResolution:
-        zoomLevel.current < tileSwitchLevel &&
-        zoomLevel.current > 1 / tileSwitchLevel
-          ? curResolution
-          : zoomLevel.current > tileSwitchLevel
-          ? Math.min(resolutionNumber - 1, curResolution + 1)
-          : Math.max(0, curResolution - 1),
-    });
+    if (!wheelTimer.current) {
+      wheelTimer.current = setTimeout(() => {
+        handleWheelCallback?.({
+          zoomLevel: zoomLevel.current,
+          viewPort: { x: viewport.current.x, y: viewport.current.y },
+          type: EventType.Wheel,
+          visibleIndexList:
+            zoomLevel.current < tileSwitchLevel &&
+            zoomLevel.current > 1 / tileSwitchLevel
+              ? visibleIndexList
+              : zoomLevel.current > tileSwitchLevel
+              ? Array.from(
+                  tilesTransform(
+                    visibleIndexList,
+                    true,
+                    tileSwitchLevel,
+                    tilesX
+                  )
+                )
+              : Array.from(
+                  tilesTransform(
+                    visibleIndexList,
+                    false,
+                    tileSwitchLevel,
+                    tilesX
+                  )
+                ),
+          curResolution:
+            zoomLevel.current < tileSwitchLevel &&
+            zoomLevel.current > 1 / tileSwitchLevel
+              ? curResolution
+              : zoomLevel.current > tileSwitchLevel
+              ? Math.min(resolutionNumber - 1, curResolution + 1)
+              : Math.max(0, curResolution - 1),
+        });
+        wheelTimer.current = null;
+      }, 100);
+    }
   };
 
   const handleCustomClick: (
