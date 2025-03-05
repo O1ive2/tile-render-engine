@@ -6,6 +6,7 @@ export function useTileImageCache(
   tileSwitchLevel: number,
   curResolution: number,
   resolutionNumber: number,
+  tileTotal: number,
   zoomLevel: React.RefObject<number>,
   setCurResolution: React.Dispatch<React.SetStateAction<number>>,
   updateData: {
@@ -48,7 +49,7 @@ export function useTileImageCache(
       }
 
       updateData.forEach((img) => {
-        newImgCache.set(img.index, img);
+        img.index < tileTotal && newImgCache.set(img.index, img);
       });
     }
     setImgCache(newImgCache);

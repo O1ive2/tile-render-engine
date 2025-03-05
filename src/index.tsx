@@ -75,6 +75,7 @@ const Gaia: React.FC<TileMapProps> = ({
     tileSwitchLevel,
     curResolution,
     resolutionNumber,
+    tilesX * tilesY,
     zoomLevel,
     setCurResolution,
     updateData
@@ -98,6 +99,7 @@ const Gaia: React.FC<TileMapProps> = ({
   // 依据顺序绘制瓦片图
   const drawTiles = (context: CanvasRenderingContext2D) => {
     context.clearRect(0, 0, context.canvas.width, context.canvas.height);
+    console.log("drawTiles", imgCache);
     imgCache?.forEach((item) => {
       const { x, y, img } = item;
 

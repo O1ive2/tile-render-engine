@@ -32,7 +32,7 @@ const Home = () => {
   const fetchClickData = async (level: number, coordinate: Location) => {
     try {
       const res = await (
-        await fetch(`http://192.168.100.195:8080/handleClick`, {
+        await fetch(`http://localhost:8080/handleClick`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
