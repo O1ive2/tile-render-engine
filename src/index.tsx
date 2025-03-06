@@ -11,7 +11,9 @@ import React from "react";
 import "./index.css";
 import calculateVisibleTiles from "./utils/calculateVisibleTiles";
 import tilesTransform from "./utils/tilesTransform";
-import { useGaiaInit, useTileImageCache } from "./hooks/renderHooks";
+import useGaiaInit from "./hooks/useGaiaInit";
+import useTileImageCache from "./hooks/useTileImageCache";
+import { init } from "./test";
 
 const Gaia: React.FC<TileMapProps> = ({
   enableCache = false,
@@ -48,25 +50,22 @@ const Gaia: React.FC<TileMapProps> = ({
       : 1;
   }, []);
 
-  const { tileWidth, tileHeight, tilesX, tilesY, setTilesX, setTilesY } =
-    useGaiaInit(
-      tileData,
-      viewport,
-      tilesNumPerResolution,
-      canvasSize,
-      canvasRef
-    );
+  const {
+    updateData,
+    tileWidth,
+    tileHeight,
+    tilesX,
+    tilesY,
+    setTilesX,
+    setTilesY,
+  } = useGaiaInit(
+    tileData,
+    viewport,
+    tilesNumPerResolution,
+    canvasSize,
+    canvasRef
+  );
 
-  const updateData = useMemo(() => {
-    return tileData.map((item) => {
-      const { blockBase64Str, index } = item;
-      const img = new Image();
-      img.src = `data:img/png;base64,${blockBase64Str}`;
-      const x = tileWidth * (index % tilesX);
-      const y = tileHeight * Math.floor(index / tilesX);
-      return { img, x, y, index };
-    });
-  }, [tileData, tilesX, tileWidth]);
   const canvas = canvasRef.current;
   const context = canvas?.getContext("2d");
 
@@ -186,7 +185,7 @@ const Gaia: React.FC<TileMapProps> = ({
 
   const handleWheel: React.WheelEventHandler<HTMLCanvasElement> = (event) => {
     setRenderFlag((f) => !f);
-    const canvas = canvasRef.current;
+
     if (!canvas) return;
 
     const zoomStep = 0.1;
@@ -376,5 +375,6 @@ const Gaia: React.FC<TileMapProps> = ({
     />
   );
 };
+init();
 
 export default memo(Gaia);
