@@ -12,7 +12,6 @@ import "./index.css";
 import calculateVisibleTiles from "./utils/calculateVisibleTiles";
 import tilesTransform from "./utils/tilesTransform";
 import { useGaiaInit, useTileImageCache } from "./hooks/renderHooks";
-import { init } from "./test";
 
 const Gaia: React.FC<TileMapProps> = ({
   enableCache = false,
@@ -125,6 +124,13 @@ const Gaia: React.FC<TileMapProps> = ({
     });
   };
 
+  const curResolutionRef = useRef(curResolution);
+
+  // 监听 curResolution 变化，保持 ref 更新
+  useEffect(() => {
+    curResolutionRef.current = curResolution;
+  }, [curResolution]);
+
   const handleMouseDown: React.MouseEventHandler<HTMLCanvasElement> = (
     event
   ) => {
@@ -133,8 +139,6 @@ const Gaia: React.FC<TileMapProps> = ({
 
     // 初始化 lastPosition 存储的值
     lastPosition.current = { x: startX, y: startY };
-
-    // 使用 requestAnimationFrame 延迟更新视口
     const onMouseMove = (moveEvent: MouseEvent) => {
       setRenderFlag((f) => !f);
       isDragging.current = true;
@@ -164,7 +168,7 @@ const Gaia: React.FC<TileMapProps> = ({
               tileWidth,
               tileHeight
             ),
-            curResolution: curResolution,
+            curResolution: curResolutionRef.current,
           });
           dragMoveTimer.current = null;
         }, 100);
@@ -372,7 +376,5 @@ const Gaia: React.FC<TileMapProps> = ({
     />
   );
 };
-
-init();
 
 export default memo(Gaia);
