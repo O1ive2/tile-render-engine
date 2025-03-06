@@ -1,7 +1,7 @@
 import ReactDOM from "react-dom/client";
-import Gaia from "./index";
+import Gaia from "../index";
 import React, { useEffect, useState } from "react";
-import { Location, TileDataProps, TileMapEventInfo } from "./interface";
+import { Location, TileDataProps, TileMapEventInfo } from "../interface";
 
 const Home = () => {
   const [data, setData] = useState<TileDataProps[]>();

@@ -6,14 +6,13 @@ import {
   useLayoutEffect,
   memo,
 } from "react";
-import { EventType, TileMapProps } from "./interface";
+import { EventType, TileMapEventInfo, TileMapProps } from "./interface";
 import React from "react";
 import "./index.css";
 import calculateVisibleTiles from "./utils/calculateVisibleTiles";
 import tilesTransform from "./utils/tilesTransform";
 import useGaiaInit from "./hooks/useGaiaInit";
 import useTileImageCache from "./hooks/useTileImageCache";
-import { init } from "./test";
 
 const Gaia: React.FC<TileMapProps> = ({
   enableCache = false,
@@ -272,7 +271,7 @@ const Gaia: React.FC<TileMapProps> = ({
       const clickX = event.clientX - rect.left;
       const clickY = event.clientY - rect.top;
 
-      let clickCallback;
+      let clickCallback: ((event: TileMapEventInfo) => void) | undefined;
 
       switch (type) {
         case EventType.Click:
@@ -370,6 +369,5 @@ const Gaia: React.FC<TileMapProps> = ({
     />
   );
 };
-init();
 
 export default memo(Gaia);
