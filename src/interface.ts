@@ -1,11 +1,11 @@
 export interface TileMapProps {
   enableCache?: boolean;
   tileData: TileDataProps[];
-  handleClick?: (event: TileMapEventInfo) => void;
-  handlewheel?: (event: TileMapEventInfo) => void;
+  onClick?: (event: TileMapEventInfo) => void;
+  onWheel?: (event: TileMapEventInfo) => void;
   onDragMove?: (event: TileMapEventInfo) => void;
-  handleRightClick?: (event: TileMapEventInfo) => void;
-  handleDoubleClick?: (event: TileMapEventInfo) => void;
+  onRightClick?: (event: TileMapEventInfo) => void;
+  onDoubleClick?: (event: TileMapEventInfo) => void;
   // Canvas size,default width 200px,height 200px
   canvasSize?: ICanvasSize;
   tileConfig: ITileConfig;

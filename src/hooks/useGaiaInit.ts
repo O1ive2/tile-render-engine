@@ -13,11 +13,13 @@ function useGaiaInit(
 ) {
   const [tileWidth, setTileWidth] = useState(0);
   const [tileHeight, setTileHeight] = useState(0);
+  // x轴瓦片数量
   const [tilesX, setTilesX] = useState<number>(
     tilesNumPerResolution instanceof Array
       ? tilesNumPerResolution[0].x
       : tilesNumPerResolution.x
   );
+  // y轴瓦片数量
   const [tilesY, setTilesY] = useState<number>(
     tilesNumPerResolution instanceof Array
       ? tilesNumPerResolution[0].y
@@ -47,7 +49,7 @@ function useGaiaInit(
     };
   }, [tileWidth, tileHeight]);
 
-  // 监听canvas的wheel事件，防止默认行为
+  // 防止wheel事件默认行为
   useEffect(() => {
     const canvas = canvasRef.current as HTMLCanvasElement;
     const handleWheelWithPreventDefault = (event: any) => {
@@ -60,6 +62,7 @@ function useGaiaInit(
     };
   }, []);
 
+  // 处理每次传入的tileData
   const updateData = useMemo(() => {
     return tileData.map((item) => {
       const { blockBase64Str, index } = item;

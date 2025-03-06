@@ -49,7 +49,7 @@ const Home = () => {
   };
 
   const handleClick = (event: TileMapEventInfo) => {
-    console.log("click", event.mouseInfo?.coordinateInTile);
+    console.log("click", event);
     fetchClickData(
       event.curResolution,
       event.mouseInfo?.coordinateInTile as Location
@@ -64,7 +64,7 @@ const Home = () => {
     );
   };
 
-  const handlewheel = (event: TileMapEventInfo) => {
+  const handleWheel = (event: TileMapEventInfo) => {
     console.log("wheelzoomlevel", event);
     fetchData(
       event.visibleIndexList as number[],
@@ -86,10 +86,10 @@ const Home = () => {
           enableCache={true}
           tileData={data}
           onDragMove={onDragMove}
-          handleClick={handleClick}
-          handlewheel={handlewheel}
-          handleRightClick={handleRightClick}
-          handleDoubleClick={handleDoubleClick}
+          onClick={handleClick}
+          onWheel={handleWheel}
+          onRightClick={handleRightClick}
+          onDoubleClick={handleDoubleClick}
           tileConfig={{
             tileSwitchLevel: 4,
             tilesNumPerResolution: [

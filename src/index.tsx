@@ -18,10 +18,10 @@ import { init } from "./test";
 const Gaia: React.FC<TileMapProps> = ({
   enableCache = false,
   tileData,
-  handleClick: handleClickCallback,
-  handlewheel: handleWheelCallback,
-  handleRightClick: handleRightClickCallback,
-  handleDoubleClick: handleDoubleClickCallback,
+  onClick: handleClickCallback,
+  onWheel: handleWheelCallback,
+  onRightClick: handleRightClickCallback,
+  onDoubleClick: handleDoubleClickCallback,
   onDragMove,
   canvasSize = {
     width: 200,
@@ -76,8 +76,11 @@ const Gaia: React.FC<TileMapProps> = ({
     resolutionNumber,
     tilesX * tilesY,
     zoomLevel,
+    updateData,
+    tilesNumPerResolution,
     setCurResolution,
-    updateData
+    setTilesX,
+    setTilesY
   );
 
   // 绘图
@@ -86,14 +89,6 @@ const Gaia: React.FC<TileMapProps> = ({
       drawTiles(context);
     }
   }, [renderFlag, imgCache]);
-
-  // 切换分辨率时，更新x，y轴瓦片数量
-  useLayoutEffect(() => {
-    tilesNumPerResolution instanceof Array &&
-      setTilesX(tilesNumPerResolution[curResolution].x);
-    tilesNumPerResolution instanceof Array &&
-      setTilesY(tilesNumPerResolution[curResolution].y);
-  }, [curResolution]);
 
   // 依据顺序绘制瓦片图
   const drawTiles = (context: CanvasRenderingContext2D) => {
